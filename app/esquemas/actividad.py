@@ -1,81 +1,99 @@
 from pydantic import BaseModel
-from typing import Optional, Dict, Any, List
-from datetime import datetime
+from typing import List, Optional
+
+
+# ------------------------------------------------------------
+# SCHEMAS PARA ACTIVIDADES
+# ------------------------------------------------------------
 
 class ActividadBase(BaseModel):
-    tipo: str
     titulo: str
     descripcion: Optional[str] = None
-    configuracion: Dict[str, Any]
-    puntos_maximos: int
-    tiempo_estimado: Optional[int] = None
-    dificultad: Optional[int] = None
-    activo: bool = True
+    tipo: str   # lectura, practica, cuestionario, etc.
+    nivel: Optional[int] = None
+    categoria_id: Optional[int] = None
+
 
 class ActividadCreate(ActividadBase):
-    contenido_id: int
+    docente_id: int
+
+
+class ActividadUpdate(BaseModel):
+    titulo: Optional[str] = None
+    descripcion: Optional[str] = None
+    tipo: Optional[str] = None
+    nivel: Optional[int] = None
+    categoria_id: Optional[int] = None
+
 
 class ActividadResponse(ActividadBase):
     id: int
-    contenido_id: int
-    fecha_creacion: datetime
-    
+    docente_id: int
+
     class Config:
         from_attributes = True
 
+
+# ------------------------------------------------------------
+# SCHEMAS PARA PREGUNTAS DE ACTIVIDAD
+# ------------------------------------------------------------
+
 class PreguntaBase(BaseModel):
-    texto_pregunta: str
-    tipo_respuesta: str
-    opciones: Optional[Dict[str, Any]] = None
-    respuesta_correcta: Optional[str] = None
-    puntuacion: int
-    explicacion: Optional[str] = None
-    orden: int = 1
+    actividad_id: int
+    pregunta: str
+    respuesta_correcta: str
+
 
 class PreguntaCreate(PreguntaBase):
-    actividad_id: int
+    pass
+
 
 class PreguntaResponse(PreguntaBase):
     id: int
-    actividad_id: int
-    
+
     class Config:
         from_attributes = True
 
+
+# ------------------------------------------------------------
+# PROGRESO DE ACTIVIDAD POR ESTUDIANTE
+# ------------------------------------------------------------
+
 class ProgresoActividadBase(BaseModel):
-    puntuacion: float
-    intentos: int = 1
-    tiempo_completacion: Optional[int] = None
-    errores_cometidos: int = 0
-    respuestas: Optional[Dict[str, Any]] = None
+    actividad_id: int
+    estudiante_id: int
+    estado: Optional[str] = None  # iniciado, completado
+    puntaje: Optional[int] = None
+
 
 class ProgresoActividadCreate(ProgresoActividadBase):
-    estudiante_id: int
-    actividad_id: int
+    pass
+
 
 class ProgresoActividadResponse(ProgresoActividadBase):
     id: int
-    estudiante_id: int
-    actividad_id: int
-    fecha_completacion: datetime
-    
+
     class Config:
         from_attributes = True
 
+
+# ------------------------------------------------------------
+# RESPUESTA DE PREGUNTAS
+# ------------------------------------------------------------
+
 class RespuestaPreguntaBase(BaseModel):
-    respuesta_estudiante: Optional[str] = None
-    correcta: Optional[bool] = None
-    puntuacion_obtenida: Optional[int] = None
-    tiempo_respuesta: Optional[int] = None
+    pregunta_id: int
+    estudiante_id: int
+    respuesta: str
+
 
 class RespuestaPreguntaCreate(RespuestaPreguntaBase):
-    progreso_id: int
-    pregunta_id: int
+    pass
+
 
 class RespuestaPreguntaResponse(RespuestaPreguntaBase):
     id: int
-    progreso_id: int
-    pregunta_id: int
-    
+    correcta: Optional[bool] = None
+
     class Config:
         from_attributes = True

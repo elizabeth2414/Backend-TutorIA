@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 
-from app.config.database import get_db
+from app.config import get_db
 from app.esquemas.curso import (
     CursoCreate, CursoResponse, CursoUpdate,
     EstudianteCursoCreate, EstudianteCursoResponse

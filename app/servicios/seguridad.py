@@ -5,9 +5,8 @@ from passlib.context import CryptContext
 from fastapi import HTTPException, status, Depends
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-
-from app.config import settings
-from app.config.database import get_db
+from app import settings
+from app.config import get_db
 from app.modelos import Usuario
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

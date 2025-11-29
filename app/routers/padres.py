@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from app.esquemas import padre as schemas
 from app.servicios import padre as services
-from app.config.database import get_db
+from app.config import get_db
 
 router = APIRouter(prefix="/padres", tags=["Padres"])
 

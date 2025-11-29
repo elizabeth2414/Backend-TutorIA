@@ -1,61 +1,77 @@
 from pydantic import BaseModel
-from typing import Optional, List
-from datetime import datetime
+from typing import List, Optional
+
+
+# ------------------------------------------------------------
+# SCHEMAS PARA FRAGMENTOS
+# ------------------------------------------------------------
+
+class FragmentoPracticaBase(BaseModel):
+    texto_fragmento: str
+    posicion_inicio: Optional[int] = None
+    posicion_fin: Optional[int] = None
+    tipo_error_asociado: Optional[str] = None
+
+
+class FragmentoPracticaCreate(FragmentoPracticaBase):
+    ejercicio_id: int
+
+
+class FragmentoPracticaResponse(FragmentoPracticaBase):
+    id: int
+    completado: bool
+    mejora_lograda: bool
+
+    class Config:
+        orm_mode = True
+
+
+# ------------------------------------------------------------
+# SCHEMAS PARA EJERCICIO DE PRÁCTICA
+# ------------------------------------------------------------
 
 class EjercicioPracticaBase(BaseModel):
     tipo_ejercicio: str
     palabras_objetivo: List[str]
-    texto_practica: str
-    dificultad: Optional[int] = None
-    completado: bool = False
-    intentos: int = 0
+    texto_practica: Optional[str] = None
+    dificultad: Optional[int] = 1
+
 
 class EjercicioPracticaCreate(EjercicioPracticaBase):
     estudiante_id: int
     evaluacion_id: int
 
+
+class EjercicioPracticaUpdate(BaseModel):
+    completado: Optional[bool] = None
+    dificultad: Optional[int] = None
+
+
 class EjercicioPracticaResponse(EjercicioPracticaBase):
     id: int
+    completado: bool
     estudiante_id: int
     evaluacion_id: int
-    fecha_creacion: datetime
-    fecha_completacion: Optional[datetime] = None
-    
+
     class Config:
-        from_attributes = True
+        orm_mode = True
+
+
+# ------------------------------------------------------------
+# SCHEMAS PARA RESULTADOS DE EJERCICIOS
+# ------------------------------------------------------------
 
 class ResultadoEjercicioBase(BaseModel):
-    puntuacion: Optional[float] = None
-    audio_url: Optional[str] = None
-    retroalimentacion_ia: Optional[str] = None
-    errores_corregidos: int = 0
-    tiempo_practica: Optional[int] = None
+    ejercicio_id: int
+    logro: Optional[str] = None
+
 
 class ResultadoEjercicioCreate(ResultadoEjercicioBase):
-    ejercicio_id: int
+    pass
+
 
 class ResultadoEjercicioResponse(ResultadoEjercicioBase):
     id: int
-    ejercicio_id: int
-    fecha_completacion: datetime
-    
+
     class Config:
-        from_attributes = True
-
-class FragmentoPracticaBase(BaseModel):
-    texto_fragmento: str
-    posicion_inicio: int
-    posicion_fin: int
-    tipo_error_asociado: Optional[str] = None
-    completado: bool = False
-    mejora_lograda: bool = False
-
-class FragmentoPracticaCreate(FragmentoPracticaBase):
-    ejercicio_id: int
-
-class FragmentoPracticaResponse(FragmentoPracticaBase):
-    id: int
-    ejercicio_id: int
-    
-    class Config:
-        from_attributes = True
+        orm_mode = True

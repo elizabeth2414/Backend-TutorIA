@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from datetime import timedelta
+from typing import List
 
-from app.config.database import get_db
+from app.config import get_db
 from app.esquemas.auth import (
     LoginRequest, Token, UsuarioCreate, UsuarioResponse, 
     CambioPassword, ResetPasswordRequest, ResetPasswordConfirm
@@ -13,7 +14,13 @@ from app.servicios.auth import (
     cambiar_password, crear_token_acceso, resetear_password,
     confirmar_reset_password
 )
-from app.servicios.seguridad import crear_token, verificar_token
+from app.servicios.seguridad import (
+    crear_token_acceso,
+    verificar_token_acceso,
+    verificar_password,
+    obtener_password_hash
+)
+
 from app.modelos import Usuario
 
 router = APIRouter(prefix="/auth", tags=["autenticacion"])

@@ -2,7 +2,7 @@ from fastapi import HTTPException, status, Depends
 from sqlalchemy.orm import Session
 from typing import List
 
-from app.config.database import get_db
+from app.config import get_db
 from app.modelos import Usuario, UsuarioRol
 from .autenticacion import obtener_usuario_actual
 

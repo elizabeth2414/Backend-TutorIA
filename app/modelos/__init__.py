@@ -1,6 +1,6 @@
-from sqlalchemy.ext.declarative import declarative_base
+# app/modelos/__init__.py
 
-Base = declarative_base()
+from app.config import Base
 
 # Importar todos los modelos aquí para que estén disponibles
 from app.modelos.usuario import Usuario
@@ -36,6 +36,7 @@ from app.modelos.auditoria import Auditoria
 from app.modelos.sesion_usuario import SesionUsuario
 
 __all__ = [
+    "Base",
     "Usuario",
     "ContrasenaAnterior",
     "UsuarioRol",
@@ -66,5 +67,5 @@ __all__ = [
     "MisionDiaria",
     "HistorialPuntos",
     "Auditoria",
-    "SesionUsuario"
+    "SesionUsuario",
 ]

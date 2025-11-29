@@ -1,27 +1,31 @@
+# app/config.py
+
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
 
-DB_USER = "postgres"           
-DB_PASSWORD = "12345"      
-DB_HOST = "localhost"      
-DB_PORT = 5432       
-DB_NAME = "proyecto_tutor"     
+from app import settings  # <- viene de app/__init__.py
 
+# URL de la base de datos. Se toma de .env (DATABASE_URL) o del valor por defecto en settings.
+SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
 
-SQLALCHEMY_DATABASE_URL = f"mysql+mysqlconnector://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+# Ejemplo de .env para tu caso (PostgreSQL):
+# DATABASE_URL=postgresql+psycopg2://postgres:12345@localhost:5432/proyecto_tutor
 
+engine = create_engine(SQLALCHEMY_DATABASE_URL, future=True)
 
-try:
-    engine = create_engine(SQLALCHEMY_DATABASE_URL)
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    Base = declarative_base()
-    print("✅ Conexión a la base de datos exitosa")
-except Exception as e:
-    print(f"❌ No se pudo conectar a la base de datos: {e}")
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+)
+
+# Base para todos los modelos
+Base = declarative_base()
 
 
 def get_db():
+    """Dependencia de FastAPI para obtener una sesión de BD por request."""
     db = SessionLocal()
     try:
         yield db

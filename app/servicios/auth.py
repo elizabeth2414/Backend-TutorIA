@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from datetime import timedelta
 
-from app.config import settings
+from app import settings
 from app.modelos import Usuario, UsuarioRol
 from app.esquemas.auth import UsuarioCreate, CambioPassword
 from app.servicios.seguridad import (

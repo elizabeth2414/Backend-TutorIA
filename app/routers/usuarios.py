@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
-from app.config.database import get_db
+from app.config import get_db
 from app.esquemas.auth import UsuarioResponse, UsuarioUpdate, UsuarioRolCreate, UsuarioRolResponse
 from app.servicios.usuario import (
     obtener_usuarios, obtener_usuario, actualizar_usuario,
