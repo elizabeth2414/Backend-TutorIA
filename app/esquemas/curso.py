@@ -1,7 +1,12 @@
+from __future__ import annotations   # ← NECESARIO para referencias al mismo archivo
+
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
-
 from datetime import datetime
+
+# IMPORTS CORRECTOS PARA EVITAR EL ERROR
+from app.esquemas.docente import DocenteResponse
+from app.esquemas.estudiante import EstudianteResponse
 
 
 class CursoBase(BaseModel):
@@ -27,7 +32,7 @@ class CursoResponse(CursoBase):
     id: int
     docente_id: int
     fecha_creacion: datetime
-    docente: Optional['DocenteResponse'] = None
+    docente: Optional[DocenteResponse] = None   # ✔ YA NO ES STRING
     
     class Config:
         from_attributes = True
@@ -44,8 +49,9 @@ class EstudianteCursoResponse(EstudianteCursoBase):
     estudiante_id: int
     curso_id: int
     fecha_inscripcion: datetime
-    estudiante: Optional['EstudianteResponse'] = None
-    curso: Optional['CursoResponse'] = None
-    
+
+    estudiante: Optional[EstudianteResponse] = None  # ✔ Importado
+    curso: Optional[CursoResponse] = None            # ✔ Funciona por __future__
+
     class Config:
         from_attributes = True

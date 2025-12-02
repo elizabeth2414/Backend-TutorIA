@@ -1,6 +1,8 @@
 from pydantic import BaseModel
 from typing import Optional
 from datetime import date, datetime
+from app.esquemas.usuario import UsuarioResponse
+
 
 class DocenteBase(BaseModel):
     especialidad: Optional[str] = None

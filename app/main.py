@@ -3,19 +3,22 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import SQLAlchemyError
+from app.logs.logger import logger
 
 from app.config import SessionLocal
-from app.routers import api_router
-from app.routers import api_router
-
+from app.routers import api_router     # <-- Import correcto
 
 app = FastAPI(title="Tutor IA - Backend")
 
+
+@app.get("/test")
+def test():
+    logger.info("Se llamó al endpoint /test")
+    return {"message": "Todo OK"}
+
+
 @app.get("/test-db")
 def test_db():
-    """
-    Endpoint para verificar la conexión a la base de datos.
-    """
     try:
         db = SessionLocal()
         db.execute("SELECT 1")
@@ -26,22 +29,25 @@ def test_db():
             "detail": str(e),
         }
 
-# CORS: agrega aquí tus frontends reales
+
+# ------------------------------
+# CORS CONFIG
+# ------------------------------
+origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-    "http://localhost:5173",
-    "http://localhost:5174",
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:5174"
-    ],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    
 )
 
-# Registramos todos los routers (auth, usuarios, cursos, IA, etc.)
+
+# ------------------------------
+# REGISTRO DE ROUTERS
+# ------------------------------
 app.include_router(api_router, prefix="/api")
-
-

@@ -2,6 +2,11 @@ from pydantic import BaseModel
 from typing import Optional, Dict, Any
 from datetime import date, datetime
 
+# ✅ IMPORTS NECESARIOS
+from app.esquemas.usuario import UsuarioResponse
+from app.esquemas.docente import DocenteResponse
+
+
 class EstudianteBase(BaseModel):
     fecha_nacimiento: date
     nivel_educativo: int
@@ -29,8 +34,10 @@ class EstudianteResponse(EstudianteBase):
     docente_id: int
     creado_en: datetime
     activo: bool
-    usuario: Optional['UsuarioResponse'] = None
-    docente: Optional['DocenteResponse'] = None
+
+    # ⚠️ ESTOS ERAN EL PROBLEMA
+    usuario: Optional[UsuarioResponse] = None
+    docente: Optional[DocenteResponse] = None
     
     class Config:
         from_attributes = True

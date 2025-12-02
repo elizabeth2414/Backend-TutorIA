@@ -19,7 +19,7 @@ def verificar_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 def obtener_password_hash(password: str) -> str:
-    """Generar hash de contraseña"""
+    password = password[:72]   # 🔥 evita error de bcrypt
     return pwd_context.hash(password)
 
 def encriptar_texto(texto: str) -> str:

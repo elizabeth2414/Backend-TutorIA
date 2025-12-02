@@ -15,7 +15,6 @@ from app.servicios.auth import (
     confirmar_reset_password
 )
 from app.servicios.seguridad import (
-    crear_token_acceso,
     verificar_token_acceso,
     verificar_password,
     obtener_password_hash

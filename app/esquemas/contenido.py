@@ -2,6 +2,11 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
+# IMPORTS NECESARIOS PARA EVITAR EL ERROR
+from app.esquemas.curso import CursoResponse
+from app.esquemas.docente import DocenteResponse
+
+
 class CategoriaLecturaBase(BaseModel):
     nombre: str
     descripcion: Optional[str] = None
@@ -11,8 +16,10 @@ class CategoriaLecturaBase(BaseModel):
     icono: Optional[str] = None
     activo: bool = True
 
+
 class CategoriaLecturaCreate(CategoriaLecturaBase):
     pass
+
 
 class CategoriaLecturaUpdate(BaseModel):
     nombre: Optional[str] = None
@@ -23,12 +30,14 @@ class CategoriaLecturaUpdate(BaseModel):
     icono: Optional[str] = None
     activo: Optional[bool] = None
 
+
 class CategoriaLecturaResponse(CategoriaLecturaBase):
     id: int
     creado_en: datetime
-    
+
     class Config:
         from_attributes = True
+
 
 class ContenidoLecturaBase(BaseModel):
     titulo: str
@@ -43,10 +52,12 @@ class ContenidoLecturaBase(BaseModel):
     publico: bool = False
     activo: bool = True
 
+
 class ContenidoLecturaCreate(ContenidoLecturaBase):
     curso_id: Optional[int] = None
     docente_id: Optional[int] = None
     categoria_id: Optional[int] = None
+
 
 class ContenidoLecturaUpdate(BaseModel):
     titulo: Optional[str] = None
@@ -61,6 +72,7 @@ class ContenidoLecturaUpdate(BaseModel):
     publico: Optional[bool] = None
     activo: Optional[bool] = None
 
+
 class ContenidoLecturaResponse(ContenidoLecturaBase):
     id: int
     curso_id: Optional[int]
@@ -68,12 +80,15 @@ class ContenidoLecturaResponse(ContenidoLecturaBase):
     categoria_id: Optional[int]
     fecha_creacion: datetime
     fecha_actualizacion: datetime
-    curso: Optional['CursoResponse'] = None
-    docente: Optional['DocenteResponse'] = None
-    categoria: Optional['CategoriaLecturaResponse'] = None
-    
+
+    # ✔ YA NO EN STRING
+    curso: Optional[CursoResponse] = None
+    docente: Optional[DocenteResponse] = None
+    categoria: Optional[CategoriaLecturaResponse] = None
+
     class Config:
         from_attributes = True
+
 
 class AudioReferenciaBase(BaseModel):
     audio_url: str
@@ -81,13 +96,15 @@ class AudioReferenciaBase(BaseModel):
     tipo: Optional[str] = None
     transcripcion: Optional[str] = None
 
+
 class AudioReferenciaCreate(AudioReferenciaBase):
     contenido_id: int
+
 
 class AudioReferenciaResponse(AudioReferenciaBase):
     id: int
     contenido_id: int
     fecha_creacion: datetime
-    
+
     class Config:
         from_attributes = True

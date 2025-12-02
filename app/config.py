@@ -4,28 +4,30 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
-from app import settings  # <- viene de app/__init__.py
+from app import settings  # <- settings viene de app/__init__.py
 
-# URL de la base de datos. Se toma de .env (DATABASE_URL) o del valor por defecto en settings.
+# 1. Cargar la URL desde .env
 SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
 
-# Ejemplo de .env para tu caso (PostgreSQL):
-# DATABASE_URL=postgresql+psycopg2://postgres:12345@localhost:5432/proyecto_tutor
+# 2. Crear engine
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL,
+    future=True
+)
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL, future=True)
-
+# 3. Crear sesión de conexión
 SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
-    bind=engine,
+    bind=engine
 )
 
-# Base para todos los modelos
+# 4. Base de modelos
 Base = declarative_base()
 
 
+# 5. Dependency para FastAPI
 def get_db():
-    """Dependencia de FastAPI para obtener una sesión de BD por request."""
     db = SessionLocal()
     try:
         yield db
