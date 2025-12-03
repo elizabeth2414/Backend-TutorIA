@@ -3,6 +3,8 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from datetime import timedelta
 from typing import List
+from app.modelos import Usuario, UsuarioRol
+
 
 from app.config import get_db
 from app.esquemas.auth import (
@@ -78,6 +80,32 @@ def confirm_reset_password(request: ResetPasswordConfirm, db: Session = Depends(
     return confirmar_reset_password(db, request.token, request.nuevo_password)
 
 @router.get("/me", response_model=UsuarioResponse)
-def me(usuario_actual: Usuario = Depends(obtener_usuario_actual)):
-    """Obtener información del usuario actual"""
-    return usuario_actual
+def me(
+    db: Session = Depends(get_db),
+    usuario_actual: Usuario = Depends(obtener_usuario_actual),
+):
+    """Obtener información del usuario actual con sus roles"""
+
+    # Sacamos los roles desde la tabla usuario_rol
+    roles_rows = (
+        db.query(UsuarioRol.rol)
+        .filter(
+            UsuarioRol.usuario_id == usuario_actual.id,
+            UsuarioRol.activo == True,
+        )
+        .all()
+    )
+    roles = [r[0] for r in roles_rows]  # ['admin', 'docente', ...]
+
+    # Construimos manualmente el UsuarioResponse
+    return UsuarioResponse(
+        id=usuario_actual.id,
+        email=usuario_actual.email,
+        nombre=usuario_actual.nombre,
+        apellido=usuario_actual.apellido,
+        activo=usuario_actual.activo,
+        fecha_creacion=usuario_actual.fecha_creacion,
+        ultimo_login=usuario_actual.ultimo_login,
+        bloqueado=usuario_actual.bloqueado,
+        roles=roles,
+    )

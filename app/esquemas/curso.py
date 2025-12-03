@@ -9,6 +9,9 @@ from app.esquemas.docente import DocenteResponse
 from app.esquemas.estudiante import EstudianteResponse
 
 
+# ================================
+#   ESQUEMAS PARA CURSO
+# ================================
 class CursoBase(BaseModel):
     nombre: str
     descripcion: Optional[str] = None
@@ -17,8 +20,11 @@ class CursoBase(BaseModel):
     activo: bool = True
     configuracion: Optional[Dict[str, Any]] = None
 
+
 class CursoCreate(CursoBase):
-    docente_id: int
+    # AHORA ES OPCIONAL → el front NO tiene que enviarlo
+    docente_id: Optional[int] = None
+
 
 class CursoUpdate(BaseModel):
     nombre: Optional[str] = None
@@ -28,21 +34,28 @@ class CursoUpdate(BaseModel):
     activo: Optional[bool] = None
     configuracion: Optional[Dict[str, Any]] = None
 
+
 class CursoResponse(CursoBase):
     id: int
     docente_id: int
     fecha_creacion: datetime
-    docente: Optional[DocenteResponse] = None   # ✔ YA NO ES STRING
+    docente: Optional[DocenteResponse] = None
     
     class Config:
         from_attributes = True
 
+
+# ================================
+#   ESQUEMAS PARA ESTUDIANTE-CURSO
+# ================================
 class EstudianteCursoBase(BaseModel):
     estado: str = 'activo'
+
 
 class EstudianteCursoCreate(EstudianteCursoBase):
     estudiante_id: int
     curso_id: int
+
 
 class EstudianteCursoResponse(EstudianteCursoBase):
     id: int
@@ -50,8 +63,8 @@ class EstudianteCursoResponse(EstudianteCursoBase):
     curso_id: int
     fecha_inscripcion: datetime
 
-    estudiante: Optional[EstudianteResponse] = None  # ✔ Importado
-    curso: Optional[CursoResponse] = None            # ✔ Funciona por __future__
+    estudiante: Optional[EstudianteResponse] = None
+    curso: Optional[CursoResponse] = None
 
     class Config:
         from_attributes = True

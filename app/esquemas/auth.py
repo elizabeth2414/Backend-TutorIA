@@ -39,7 +39,8 @@ class UsuarioResponse(UsuarioBase):
     fecha_creacion: datetime
     ultimo_login: Optional[datetime] = None
     bloqueado: bool = False
-    
+    roles: List[str] = []
+
     class Config:
         from_attributes = True
 

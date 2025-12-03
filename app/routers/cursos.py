@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
 from app.config import get_db
 from app.esquemas.curso import (
@@ -8,7 +8,6 @@ from app.esquemas.curso import (
     EstudianteCursoCreate, EstudianteCursoResponse
 )
 
-# IMPORTAMOS LA FUNCIÓN DEL SERVICIO CON ALIAS PARA EVITAR RECURSIÓN
 from app.servicios.curso import (
     crear_curso,
     obtener_cursos,
@@ -21,7 +20,7 @@ from app.servicios.curso import (
 )
 
 from app.servicios.seguridad import obtener_usuario_actual
-from app.modelos import Usuario
+from app.modelos import Usuario, Docente  # 👈 IMPORTANTE
 
 router = APIRouter(prefix="/cursos", tags=["cursos"])
 
@@ -35,8 +34,32 @@ def crear_nuevo_curso(
     db: Session = Depends(get_db),
     usuario_actual: Usuario = Depends(obtener_usuario_actual)
 ):
-    # Asignar automáticamente el docente_id
-    curso.docente_id = usuario_actual.id
+    # 1️⃣ Buscar el docente asociado a este usuario
+    docente = (
+        db.query(Docente)
+        .filter(Docente.usuario_id == usuario_actual.id)
+        .first()
+    )
+
+    # 2️⃣ Si NO existe, lo creamos automáticamente
+    if not docente:
+        docente = Docente(
+            usuario_id=usuario_actual.id,
+            # Los demás campos de Docente son opcionales según tu modelo
+            # especialidad=None,
+            # grado_academico=None,
+            # institucion=None,
+            # fecha_contratacion=None,
+            activo=True,
+        )
+        db.add(docente)
+        db.commit()
+        db.refresh(docente)
+
+    # 3️⃣ Asignar el ID del DOCENTE (NO el del usuario)
+    curso.docente_id = docente.id
+
+    # 4️⃣ Crear el curso con el servicio
     return crear_curso(db, curso)
 
 
@@ -47,12 +70,30 @@ def crear_nuevo_curso(
 def listar_cursos(
     skip: int = 0,
     limit: int = 100,
-    docente_id: int = None,
-    activo: bool = True,
+    docente_id: Optional[int] = None,
+    activo: Optional[bool] = None,
     db: Session = Depends(get_db),
     usuario_actual: Usuario = Depends(obtener_usuario_actual)
 ):
-    return obtener_cursos(db, skip=skip, limit=limit, docente_id=docente_id, activo=activo)
+    # Si no se envía docente_id, usamos el docente del usuario logueado
+    if docente_id is None:
+        docente = (
+            db.query(Docente)
+            .filter(Docente.usuario_id == usuario_actual.id)
+            .first()
+        )
+        if not docente:
+            # Si aún no tiene perfil de docente, no hay cursos
+            return []
+        docente_id = docente.id
+
+    return obtener_cursos(
+        db,
+        skip=skip,
+        limit=limit,
+        docente_id=docente_id,
+        activo=activo
+    )
 
 
 # ================================
@@ -71,7 +112,7 @@ def obtener_curso_por_id(
 
 
 # ================================
-#   ACTUALIZAR CURSO (CORREGIDO)
+#   ACTUALIZAR CURSO
 # ================================
 @router.put("/{curso_id}", response_model=CursoResponse)
 def actualizar_curso_router(

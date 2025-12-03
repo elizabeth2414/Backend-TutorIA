@@ -1,7 +1,21 @@
 from fastapi import APIRouter
 
-from app.routers import auth, usuarios, docentes, estudiantes, cursos, contenido
-from app.routers import evaluaciones, ejercicios, actividades, gamificacion, estadisticas,ia_routes
+from app.routers import (
+    auth,
+    usuarios,
+    docentes,
+    estudiantes,
+    cursos,
+    contenido,
+    evaluaciones,
+    ejercicios,
+    actividades,
+    gamificacion,
+    estadisticas,
+    ia_routes,
+    admin,
+    admin_docentes,
+)
 
 api_router = APIRouter()
 
@@ -18,3 +32,7 @@ api_router.include_router(actividades.router)
 api_router.include_router(gamificacion.router)
 api_router.include_router(estadisticas.router)
 api_router.include_router(ia_routes.router)
+
+# 👇 AÑADIR ESTE
+api_router.include_router(admin.router)
+api_router.include_router(admin_docentes.router)

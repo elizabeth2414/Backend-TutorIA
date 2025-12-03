@@ -10,6 +10,7 @@ from app.routers import api_router     # <-- Import correcto
 
 app = FastAPI(title="Tutor IA - Backend")
 
+logger.info("🚀 Backend TutorIA iniciado correctamente")
 
 @app.get("/test")
 def test():
