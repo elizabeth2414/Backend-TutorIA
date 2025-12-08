@@ -59,3 +59,12 @@ class NivelEstudianteResponse(NivelEstudianteBase):
     
     class Config:
         from_attributes = True
+        
+class EstudianteCreateDocente(BaseModel):
+    nombre: str
+    apellido: str
+    fecha_nacimiento: date
+    nivel_educativo: int
+    necesidades_especiales: Optional[str] = None
+    curso_id: int
+

@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app import settings
 from app.config import get_db
-from app.modelos import Usuario, UsuarioRol  # 👈 IMPORTANTE: añadimos UsuarioRol
+from app.modelos import Usuario, UsuarioRol, Docente # 👈 IMPORTANTE: añadimos UsuarioRol
 
 # ==============================
 # CONFIGURACIÓN DE SEGURIDAD
@@ -134,3 +134,36 @@ def requiere_admin(
         )
 
     return usuario
+
+def requiere_docente(
+    usuario_actual: Usuario = Depends(obtener_usuario_actual),
+    db: Session = Depends(get_db)
+):
+    # Verificar si el usuario tiene el rol docente
+    rol_docente = (
+        db.query(UsuarioRol)
+        .filter(UsuarioRol.usuario_id == usuario_actual.id)
+        .filter(UsuarioRol.rol == "docente")
+        .first()
+    )
+
+    if not rol_docente:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acceso restringido: se requiere rol DOCENTE"
+        )
+
+    # Obtener el registro de docente
+    docente = (
+        db.query(Docente)
+        .filter(Docente.usuario_id == usuario_actual.id)
+        .first()
+    )
+
+    if not docente:
+        raise HTTPException(
+            status_code=404,
+            detail="No se encontró el perfil de docente"
+        )
+
+    return docente

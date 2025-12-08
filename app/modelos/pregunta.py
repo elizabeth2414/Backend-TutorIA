@@ -15,7 +15,7 @@ class Pregunta(Base):
     explicacion = Column(Text)
     orden = Column(Integer, default=1)
     
-    actividad = relationship("Actividad")
+    actividad = relationship("Actividad", back_populates="preguntas")   # ← ✔ CORREGIDO
     
     __table_args__ = (
         CheckConstraint("tipo_respuesta IN ('multiple_choice', 'verdadero_falso', 'texto_libre', 'emparejamiento')", name='check_tipo_respuesta'),

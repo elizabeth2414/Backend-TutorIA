@@ -1,8 +1,8 @@
+# app/routers/__init__.py
 from fastapi import APIRouter
 
 from app.routers import (
     auth,
-    usuarios,
     docentes,
     estudiantes,
     cursos,
@@ -13,15 +13,17 @@ from app.routers import (
     gamificacion,
     estadisticas,
     ia_routes,
-    admin,
     admin_docentes,
+    categorias,
+    lecturas,
+    ia_actividades,
+    usuarios,  # 👈 ESTE VA AL FINAL
 )
 
 api_router = APIRouter()
 
-# Incluir todos los routers
+
 api_router.include_router(auth.router)
-api_router.include_router(usuarios.router)
 api_router.include_router(docentes.router)
 api_router.include_router(estudiantes.router)
 api_router.include_router(cursos.router)
@@ -31,8 +33,11 @@ api_router.include_router(ejercicios.router)
 api_router.include_router(actividades.router)
 api_router.include_router(gamificacion.router)
 api_router.include_router(estadisticas.router)
-api_router.include_router(ia_routes.router)
-
-# 👇 AÑADIR ESTE
-api_router.include_router(admin.router)
+api_router.include_router(ia_routes.router)     
 api_router.include_router(admin_docentes.router)
+api_router.include_router(categorias.router)
+api_router.include_router(lecturas.router)
+api_router.include_router(ia_actividades.router)
+
+# 👇 USERS SIEMPRE AL FINAL
+api_router.include_router(usuarios.router)

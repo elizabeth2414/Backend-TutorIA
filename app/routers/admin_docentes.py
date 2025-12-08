@@ -1,99 +1,81 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from typing import List
+
 from app.config import get_db
 from app.servicios.seguridad import requiere_admin
-from app.modelos import Usuario, UsuarioRol, Docente
-from app.servicios.seguridad import get_password_hash
+from app.esquemas.docente import (
+    DocenteCreateAdmin,
+    DocenteAdminResponse,
+    DocenteUpdate,
+)
+from app.servicios.docente_admin import (
+    crear_docente_admin,
+    listar_docentes_admin,
+    obtener_docente_admin,
+    actualizar_docente_admin,
+    eliminar_docente_admin,
+)
 
 router = APIRouter(prefix="/admin/docentes", tags=["admin-docentes"])
 
 
-# ===============================
-# 1. LISTAR DOCENTES
-# ===============================
-@router.get("/")
-def listar_docentes(db: Session = Depends(get_db), admin=Depends(requiere_admin)):
-
-    docentes = (
-        db.query(Docente)
-        .join(Usuario, Usuario.id == Docente.usuario_id)
-        .all()
-    )
-
-    return [
-        {
-            "id": d.id,
-            "usuario_id": d.usuario_id,
-            "nombre": d.usuario.nombre,
-            "apellido": d.usuario.apellido,
-            "email": d.usuario.email,
-            "especialidad": d.especialidad,
-            "institucion": d.institucion,
-            "activo": d.activo,
-        }
-        for d in docentes
-    ]
-
-
-# ===============================
-# 2. CREAR DOCENTE
-# ===============================
-@router.post("/")
-def crear_docente_admin(
-    data: dict,
+# ===========================================================
+#   CREAR DOCENTE (ADMIN)
+# ===========================================================
+@router.post("", response_model=DocenteAdminResponse)
+def crear_docente_route(
+    data: DocenteCreateAdmin,
     db: Session = Depends(get_db),
     admin=Depends(requiere_admin),
 ):
-
-    # 1. Crear usuario
-    usuario = Usuario(
-        nombre=data["nombre"],
-        apellido=data["apellido"],
-        email=data["email"],
-        password_hash=get_password_hash(data["password"]),
-        activo=True
-    )
-    db.add(usuario)
-    db.commit()
-    db.refresh(usuario)
-
-    # 2. Asignar rol
-    rol = UsuarioRol(
-        usuario_id=usuario.id,
-        rol="docente",
-        activo=True
-    )
-    db.add(rol)
-    db.commit()
-
-    # 3. Crear registro docente
-    docente = Docente(
-        usuario_id=usuario.id,
-        especialidad=data.get("especialidad"),
-        institucion=data.get("institucion"),
-        activo=True
-    )
-    db.add(docente)
-    db.commit()
-    db.refresh(docente)
-
-    return {"msg": "Docente creado con éxito", "docente_id": docente.id}
+    return crear_docente_admin(db, data)
 
 
-# ===============================
-# 3. ELIMINAR DOCENTE
-# ===============================
-@router.delete("/{docente_id}")
-def eliminar_docente(
+# ===========================================================
+#   LISTAR DOCENTES (ADMIN)
+# ===========================================================
+@router.get("", response_model=List[DocenteAdminResponse])
+def listar_docentes_route(
+    db: Session = Depends(get_db),
+    admin=Depends(requiere_admin)
+):
+    return listar_docentes_admin(db)
+
+
+# ===========================================================
+#   OBTENER DOCENTE POR ID
+# ===========================================================
+@router.get("/{docente_id}", response_model=DocenteAdminResponse)
+def obtener_docente_route(
     docente_id: int,
     db: Session = Depends(get_db),
-    admin=Depends(requiere_admin),
+    admin=Depends(requiere_admin)
 ):
-    docente = db.query(Docente).filter(Docente.id == docente_id).first()
-    if not docente:
-        raise HTTPException(404, "Docente no encontrado")
+    return obtener_docente_admin(db, docente_id)
 
-    db.delete(docente)
-    db.commit()
 
-    return {"msg": "Docente eliminado"}
+# ===========================================================
+#   ACTUALIZAR DOCENTE
+# ===========================================================
+@router.put("/{docente_id}", response_model=DocenteAdminResponse)
+def actualizar_docente_route(
+    docente_id: int,
+    data: DocenteUpdate,
+    db: Session = Depends(get_db),
+    admin=Depends(requiere_admin)
+):
+    return actualizar_docente_admin(db, docente_id, data)
+
+
+# ===========================================================
+#   ELIMINAR DOCENTE
+# ===========================================================
+@router.delete("/{docente_id}")
+def eliminar_docente_route(
+    docente_id: int,
+    db: Session = Depends(get_db),
+    admin=Depends(requiere_admin)
+):
+    eliminar_docente_admin(db, docente_id)
+    return {"mensaje": "Docente eliminado correctamente"}

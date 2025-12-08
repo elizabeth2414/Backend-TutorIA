@@ -7,3 +7,60 @@
 2025-12-03 14:39:39,207 - INFO - 🚀 Backend TutorIA iniciado correctamente
 2025-12-03 14:57:56,823 - INFO - 🚀 Backend TutorIA iniciado correctamente
 2025-12-03 16:06:37,977 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-04 00:46:54,410 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-04 01:02:07,835 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-04 01:39:42,601 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-04 01:44:47,790 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-04 01:53:51,664 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-04 02:02:30,891 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-04 03:12:28,998 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-04 03:24:11,605 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-04 03:58:05,391 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-04 04:28:40,195 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-04 12:51:03,307 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-04 13:37:26,462 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-04 13:56:44,396 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-04 14:11:32,800 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-04 14:21:40,894 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-04 14:27:51,429 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-04 14:34:02,145 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-04 15:26:50,509 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-04 16:00:52,134 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-04 16:23:53,352 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-05 14:32:39,313 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-05 16:27:24,333 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-05 16:54:59,996 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-05 17:15:08,407 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-06 00:52:33,567 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-06 01:16:24,026 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-06 01:32:10,141 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-06 01:34:43,574 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-06 01:42:32,148 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-06 01:54:52,647 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-06 01:59:47,717 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-07 02:27:37,064 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-07 02:28:52,497 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-07 04:34:39,186 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-07 21:48:46,349 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-08 00:16:34,576 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-08 00:41:13,491 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-08 01:02:38,183 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-08 01:42:17,550 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-08 02:32:58,213 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-08 03:44:26,878 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-08 13:30:08,502 - INFO - Cargando modelo PHI-3 Mini...
+2025-12-08 14:11:27,423 - INFO - Cargando modelo FLAN-T5-Small...
+2025-12-08 14:12:52,564 - INFO - Modelo cargado correctamente en CPU.
+2025-12-08 14:12:53,542 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-08 14:17:12,585 - INFO - Generando actividades IA para contenido_id=2
+2025-12-08 14:18:03,343 - ERROR - ❌ Error procesando JSON generado: substring not found
+2025-12-08 14:18:03,345 - ERROR - Texto recibido:  "Titulo": "Actividad generada por IA", "descripcion": "Actividad de comprensión lectora", "preguntas": [ "tipo": "multiple_choice", "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "
+2025-12-08 14:24:22,948 - INFO - Generando actividades IA para contenido_id=2
+2025-12-08 14:25:16,924 - ERROR - ❌ Error procesando JSON generado: substring not found
+2025-12-08 14:25:16,978 - ERROR - Texto recibido:  "Titulo": "Actividad generada por IA", "descripcion": "Actividad de comprensión lectora", "preguntas": [ "tipo": "multiple_choice", "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "pregunta": "
+2025-12-08 14:57:33,717 - INFO - Cargando modelo FLAN-T5-Small...
+2025-12-08 14:57:38,007 - INFO - Modelo cargado correctamente en CPU.
+2025-12-08 14:57:38,579 - INFO - 🚀 Backend TutorIA iniciado correctamente
+2025-12-08 14:58:21,946 - INFO - Generando actividades IA para contenido_id=2
+2025-12-08 14:59:03,587 - ERROR - ❌ Error procesando JSON generado: substring not found
+2025-12-08 14:59:03,587 - ERROR - Texto recibido: AGENDA NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NICAMENTE NIC
