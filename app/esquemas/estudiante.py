@@ -2,7 +2,6 @@ from pydantic import BaseModel
 from typing import Optional, Dict, Any
 from datetime import date, datetime
 
-# ✅ IMPORTS NECESARIOS
 from app.esquemas.usuario import UsuarioResponse
 from app.esquemas.docente import DocenteResponse
 
@@ -15,9 +14,11 @@ class EstudianteBase(BaseModel):
     configuracion: Optional[Dict[str, Any]] = None
     transferible: bool = True
 
+
 class EstudianteCreate(EstudianteBase):
     docente_id: int
     usuario_id: Optional[int] = None
+
 
 class EstudianteUpdate(BaseModel):
     fecha_nacimiento: Optional[date] = None
@@ -28,6 +29,7 @@ class EstudianteUpdate(BaseModel):
     activo: Optional[bool] = None
     transferible: Optional[bool] = None
 
+
 class EstudianteResponse(EstudianteBase):
     id: int
     usuario_id: Optional[int]
@@ -35,12 +37,12 @@ class EstudianteResponse(EstudianteBase):
     creado_en: datetime
     activo: bool
 
-    # ⚠️ ESTOS ERAN EL PROBLEMA
     usuario: Optional[UsuarioResponse] = None
     docente: Optional[DocenteResponse] = None
-    
+
     class Config:
         from_attributes = True
+
 
 class NivelEstudianteBase(BaseModel):
     nivel_actual: int = 1
@@ -52,14 +54,16 @@ class NivelEstudianteBase(BaseModel):
     racha_actual: int = 0
     racha_maxima: int = 0
 
+
 class NivelEstudianteResponse(NivelEstudianteBase):
     id: int
     estudiante_id: int
     fecha_actualizacion: datetime
-    
+
     class Config:
         from_attributes = True
-        
+
+
 class EstudianteCreateDocente(BaseModel):
     nombre: str
     apellido: str
@@ -67,4 +71,3 @@ class EstudianteCreateDocente(BaseModel):
     nivel_educativo: int
     necesidades_especiales: Optional[str] = None
     curso_id: int
-

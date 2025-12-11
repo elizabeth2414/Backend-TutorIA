@@ -167,3 +167,35 @@ def requiere_docente(
         )
 
     return docente
+
+def asignar_rol(db: Session, usuario_id: int, rol: str):
+    rol = rol.lower()  # 👈 IMPORTANTE
+
+    from app.modelos import UsuarioRol
+
+    rol_existente = (
+        db.query(UsuarioRol)
+        .filter(
+            UsuarioRol.usuario_id == usuario_id,
+            UsuarioRol.rol == rol
+        )
+        .first()
+    )
+
+    if rol_existente:
+        rol_existente.activo = True
+        db.commit()
+        db.refresh(rol_existente)
+        return rol_existente
+
+    nuevo_rol = UsuarioRol(
+        usuario_id=usuario_id,
+        rol=rol,    # 👈 YA ESTÁ EN MINÚSCULA
+        activo=True
+    )
+
+    db.add(nuevo_rol)
+    db.commit()
+    db.refresh(nuevo_rol)
+
+    return nuevo_rol

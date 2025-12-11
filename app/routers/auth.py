@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from datetime import timedelta
 from typing import List
-from app.modelos import Usuario, UsuarioRol
+from app.modelos import Usuario, UsuarioRol, Padre
 
 
 from app.config import get_db
@@ -19,7 +19,8 @@ from app.servicios.auth import (
 from app.servicios.seguridad import (
     verificar_token_acceso,
     verificar_password,
-    obtener_password_hash
+    obtener_password_hash,
+    asignar_rol
 )
 
 from app.modelos import Usuario
@@ -109,3 +110,37 @@ def me(
         bloqueado=usuario_actual.bloqueado,
         roles=roles,
     )
+
+@router.post("/registro-padre", response_model=UsuarioResponse)
+def registro_padre(
+    datos: UsuarioCreate,
+    db: Session = Depends(get_db)
+):
+    """
+    Registra un usuario con rol PADRE y crea su registro en la tabla 'padre'.
+    """
+
+    # 1️⃣ Crear usuario
+    nuevo_usuario = crear_usuario(db, datos)
+
+    if not nuevo_usuario:
+        raise HTTPException(
+            status_code=400,
+            detail="No se pudo crear el usuario padre."
+        )
+
+    # 2️⃣ Asignar rol PADRE (ya será convertido a minúsculas por la función)
+    asignar_rol(db, nuevo_usuario.id, "padre")
+
+    # 3️⃣ Crear registro en tabla PADRE
+    nuevo_padre = Padre(
+        usuario_id=nuevo_usuario.id,
+        parentesco="padre",
+        notificaciones_activas=True
+    )
+
+    db.add(nuevo_padre)
+    db.commit()
+    db.refresh(nuevo_padre)
+
+    return nuevo_usuario

@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from typing import List, Optional
 
-from app.modelos import Estudiante, NivelEstudiante
+from app.modelos import Estudiante, NivelEstudiante, EstudianteCurso, Curso
 from app.esquemas.estudiante import EstudianteCreate, EstudianteUpdate
 
 def crear_estudiante(db: Session, estudiante: EstudianteCreate):
@@ -67,3 +67,16 @@ def eliminar_estudiante(db: Session, estudiante_id: int):
 
 def obtener_nivel_estudiante(db: Session, estudiante_id: int):
     return db.query(NivelEstudiante).filter(NivelEstudiante.estudiante_id == estudiante_id).first()
+
+
+def obtener_cursos_estudiante(db, estudiante_id: int):
+    """
+    Retorna la lista de cursos asociados a un estudiante.
+    """
+    cursos = (
+        db.query(Curso)
+        .join(EstudianteCurso, EstudianteCurso.curso_id == Curso.id)
+        .filter(EstudianteCurso.estudiante_id == estudiante_id)
+        .all()
+    )
+    return cursos

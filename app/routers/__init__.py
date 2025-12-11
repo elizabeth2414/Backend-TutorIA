@@ -17,7 +17,8 @@ from app.routers import (
     categorias,
     lecturas,
     ia_actividades,
-    usuarios,  # 👈 ESTE VA AL FINAL
+    usuarios, 
+    padres,# 👈 ESTE VA AL FINAL
 )
 
 api_router = APIRouter()
@@ -38,6 +39,7 @@ api_router.include_router(admin_docentes.router)
 api_router.include_router(categorias.router)
 api_router.include_router(lecturas.router)
 api_router.include_router(ia_actividades.router)
+api_router.include_router(padres.router)
 
 # 👇 USERS SIEMPRE AL FINAL
 api_router.include_router(usuarios.router)

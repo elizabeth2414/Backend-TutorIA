@@ -10,3 +10,4 @@ from .ejercicio import *
 from .actividad import *
 from .gamificacion import *
 from .estadisticas import *
+from .padre import *
