@@ -15,7 +15,7 @@ from app.servicios.seguridad import obtener_usuario_actual
 
 # ESQUEMAS
 from app.esquemas.docente import DocenteCreate, DocenteResponse, DocenteUpdate
-from app.esquemas.estudiante import EstudianteCreateDocente
+from app.esquemas.estudiante import EstudianteCreateDocente, EstudianteUpdateDocente
 
 
 router = APIRouter(prefix="/docentes", tags=["docentes"])
@@ -218,6 +218,80 @@ def listar_estudiantes_docente(
     )
 
     return [row._asdict() for row in ests]
+
+@router.get("/estudiantes/{estudiante_id}")
+def obtener_estudiante_docente(
+    estudiante_id: int,
+    db: Session = Depends(get_db),
+    usuario_actual: Usuario = Depends(obtener_usuario_actual)
+):
+    docente = obtener_o_crear_docente(db, usuario_actual.id)
+
+    est = (
+        db.query(Estudiante)
+        .join(EstudianteCurso, EstudianteCurso.estudiante_id == Estudiante.id)
+        .filter(Estudiante.id == estudiante_id)
+        .filter(Estudiante.docente_id == docente.id)
+        .first()
+    )
+
+    if not est:
+        raise HTTPException(404, "Estudiante no encontrado")
+
+    curso_asignado = (
+        db.query(EstudianteCurso.curso_id)
+        .filter(EstudianteCurso.estudiante_id == estudiante_id)
+        .first()
+    )
+
+    return {
+        "id": est.id,
+        "nombre": est.nombre,
+        "apellido": est.apellido,
+        "fecha_nacimiento": est.fecha_nacimiento,
+        "nivel_educativo": est.nivel_educativo,
+        "necesidades_especiales": est.necesidades_especiales,
+        "curso_id": curso_asignado[0] if curso_asignado else None
+    }
+
+# ================================================================
+#   ELIMINAR ESTUDIANTE (DOCENTE)
+# ================================================================
+@router.delete("/estudiantes/{estudiante_id}")
+def eliminar_estudiante_docente(
+    estudiante_id: int,
+    db: Session = Depends(get_db),
+    usuario_actual: Usuario = Depends(obtener_usuario_actual)
+):
+
+    # 1. Obtener docente (si no existe se crea)
+    docente = obtener_o_crear_docente(db, usuario_actual.id)
+
+    # 2. Buscar estudiante que pertenezca a este docente
+    estudiante = (
+        db.query(Estudiante)
+        .filter(Estudiante.id == estudiante_id)
+        .filter(Estudiante.docente_id == docente.id)
+        .first()
+    )
+
+    if not estudiante:
+        raise HTTPException(
+            status_code=404,
+            detail="Estudiante no encontrado o no pertenece a este docente."
+        )
+
+    # 3. Eliminar relaciones en EstudianteCurso
+    db.query(EstudianteCurso).filter(EstudianteCurso.estudiante_id == estudiante_id).delete()
+
+    # 4. Eliminar estudiante
+    db.delete(estudiante)
+    db.commit()
+
+    return {
+        "mensaje": "Estudiante eliminado correctamente",
+        "id": estudiante_id
+    }
 
 
 # ================================================================

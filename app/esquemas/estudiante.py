@@ -71,3 +71,11 @@ class EstudianteCreateDocente(BaseModel):
     nivel_educativo: int
     necesidades_especiales: Optional[str] = None
     curso_id: int
+
+class EstudianteUpdateDocente(BaseModel):
+    nombre: Optional[str] = None
+    apellido: Optional[str] = None
+    fecha_nacimiento: Optional[date] = None
+    nivel_educativo: Optional[int] = None
+    necesidades_especiales: Optional[str] = None
+    curso_id: Optional[int] = None
