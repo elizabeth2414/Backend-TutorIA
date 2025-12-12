@@ -7,6 +7,8 @@ from app.esquemas.docente import DocenteResponse
 
 
 class EstudianteBase(BaseModel):
+    nombre: str
+    apellido: str
     fecha_nacimiento: date
     nivel_educativo: int
     necesidades_especiales: Optional[str] = None
