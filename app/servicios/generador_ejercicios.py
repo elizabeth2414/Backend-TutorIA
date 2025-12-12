@@ -1,24 +1,33 @@
-from typing import List, Dict
+from typing import List, Dict, Set
+from collections import defaultdict
+
 from sqlalchemy.orm import Session
 
-from app.modelos import EjercicioPractica, FragmentoPractica
+from app.modelos import EjercicioPractica, FragmentoPractica, Estudiante
 
 
 class GeneradorEjercicios:
-    """
-    Genera ejercicios de práctica a partir de los errores detectados.
-    """
-
     def __init__(self) -> None:
-        self.tipos_ejercicios = {
+        self.mapa_tipo_a_ejercicio = {
             "sustitucion": "palabras_aisladas",
             "omision": "oraciones",
+            "insercion": "palabras_aisladas",
             "puntuacion": "puntuacion",
-            "fluidez": "ritmo",
-            "entonacion": "entonacion",
-            "omision_parcial": "palabras_aisladas",
-            "insercion": "oraciones",
         }
+
+    def _extraer_palabras_por_tipo(
+        self, errores: List[Dict]
+    ) -> Dict[str, Set[str]]:
+        resultado: Dict[str, Set[str]] = defaultdict(set)
+        for e in errores:
+            tipo = e.get("tipo_error", "otro")
+            if tipo not in self.mapa_tipo_a_ejercicio:
+                continue
+            palabra = e.get("palabra_original") or e.get("palabra_leida")
+            if not palabra:
+                continue
+            resultado[tipo].add(palabra)
+        return resultado
 
     def crear_ejercicios_desde_errores(
         self,
@@ -27,36 +36,40 @@ class GeneradorEjercicios:
         evaluacion_id: int,
         errores: List[Dict],
     ) -> List[int]:
-        """
-        Crea ejercicios de práctica agrupando errores por tipo.
-        Devuelve la lista de IDs de EjercicioPractica creados.
-        """
-        if not errores:
+        estudiante = db.query(Estudiante).filter(Estudiante.id == estudiante_id).first()
+        if not estudiante:
             return []
 
+        palabras_por_tipo = self._extraer_palabras_por_tipo(errores)
         ejercicios_ids: List[int] = []
-        errores_por_tipo: Dict[str, List[Dict]] = {}
 
-        for e in errores:
-            tipo = e.get("tipo_error", "otros")
-            errores_por_tipo.setdefault(tipo, []).append(e)
-
-        for tipo_error, errores_grupo in errores_por_tipo.items():
-            tipo_ejercicio = self.tipos_ejercicios.get(tipo_error, "palabras_aisladas")
-
-            palabras_objetivo = list(
-                {
-                    (e.get("palabra_original") or e.get("palabra_detectada") or "").lower()
-                    for e in errores_grupo
-                    if (e.get("palabra_original") or e.get("palabra_detectada"))
-                }
-            )
-            palabras_objetivo = [p for p in palabras_objetivo if p]
-
-            if not palabras_objetivo:
+        for tipo_error, palabras_set in palabras_por_tipo.items():
+            if not palabras_set:
                 continue
 
-            texto_practica = "Practica estas palabras: " + ", ".join(palabras_objetivo)
+            tipo_ejercicio = self.mapa_tipo_a_ejercicio.get(
+                tipo_error, "palabras_aisladas"
+            )
+            palabras_objetivo = list(palabras_set)
+
+            if tipo_error == "puntuacion":
+                texto_practica = (
+                    "Lee en voz alta las oraciones poniendo especial atención a los puntos y comas."
+                )
+                dificultad = 2
+            elif tipo_error in ("sustitucion", "insercion"):
+                texto_practica = (
+                    "Repite las palabras indicadas hasta que suenen claras y correctas."
+                )
+                dificultad = 1
+            elif tipo_error == "omision":
+                texto_practica = (
+                    "Lee nuevamente las oraciones completas, sin saltarte palabras."
+                )
+                dificultad = 2
+            else:
+                texto_practica = "Practica las partes indicadas de la lectura."
+                dificultad = 1
 
             ejercicio = EjercicioPractica(
                 estudiante_id=estudiante_id,
@@ -64,11 +77,13 @@ class GeneradorEjercicios:
                 tipo_ejercicio=tipo_ejercicio,
                 palabras_objetivo=palabras_objetivo,
                 texto_practica=texto_practica,
-                dificultad=1,
+                dificultad=dificultad,
                 completado=False,
+                intentos=0,
             )
             db.add(ejercicio)
             db.flush()
+
             ejercicios_ids.append(ejercicio.id)
 
             for palabra in palabras_objetivo:

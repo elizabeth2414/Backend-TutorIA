@@ -1,11 +1,13 @@
-import logging
 import re
-from typing import Dict, List
+import time
+import unicodedata
+from typing import Dict, List, Optional
 
 from difflib import SequenceMatcher
 from sqlalchemy.orm import Session
-import whisper
+from faster_whisper import WhisperModel
 
+from app.logs.logger import logger
 from app.modelos import (
     ContenidoLectura,
     EvaluacionLectura,
@@ -13,199 +15,194 @@ from app.modelos import (
     DetalleEvaluacion,
     ErrorPronunciacion,
     Estudiante,
+    IntentoLectura,
 )
-
-logger = logging.getLogger(__name__)
 
 
 class ServicioAnalisisLectura:
-    """
-    Servicio principal para:
-    - transcribir audio con Whisper local
-    - comparar con el texto de referencia
-    - calcular métricas
-    - guardar resultados en la BD
-    """
+    TOKEN_REGEX = r"[A-Za-zÁÉÍÓÚÜáéíóúüñÑ0-9]+|[¿\?¡!.,;:]"
 
     def __init__(self, modelo: str = "small") -> None:
-        # Carga del modelo Whisper solo una vez
-        logger.info(f"Cargando modelo Whisper '{modelo}'...")
-        self.model = whisper.load_model(modelo)
-        logger.info("Modelo Whisper cargado correctamente.")
+        logger.info(f"Cargando modelo Faster-Whisper '{modelo}' en CPU...")
+        self.model = WhisperModel(modelo, device="cpu", compute_type="int8")
+        logger.info("Modelo Faster-Whisper cargado correctamente.")
 
-    # ---------- UTILIDADES ----------
-
-    def _normalizar_texto(self, texto: str) -> List[str]:
-        """
-        Convierte el texto a minúsculas, limpia símbolos y devuelve lista de tokens.
-        """
+    # ------------------- utilidades texto -------------------
+    def _normalizar_texto(self, texto: str) -> str:
+        if not texto:
+            return ""
+        texto = texto.replace("\n", " ").strip()
+        texto = re.sub(r"\s+", " ", texto)
         texto = texto.lower()
-        texto = re.sub(r"[^\wáéíóúüñ]+", " ", texto, flags=re.UNICODE)
-        tokens = [t for t in texto.split() if t]
-        return tokens
+        texto = unicodedata.normalize("NFD", texto)
+        texto = "".join(ch for ch in texto if unicodedata.category(ch) != "Mn")
+        return texto
 
+    def _tokenizar(self, texto: str) -> List[str]:
+        texto_norm = self._normalizar_texto(texto)
+        return re.findall(self.TOKEN_REGEX, texto_norm, flags=re.UNICODE)
+
+    def _es_puntuacion(self, token: str) -> bool:
+        return bool(re.fullmatch(r"[¿\?¡!.,;:]", token or ""))
+
+    # ------------------- transcripción -------------------
     def _transcribir_audio(self, audio_path: str) -> Dict:
-        """
-        Transcribe el audio usando Whisper local.
-        Retorna diccionario con:
-        - text (str)
-        - duration (float)
-        - language (str)
-        - segments (si lo necesitas más adelante)
-        """
-        try:
-            # Whisper ya maneja el resample a 16k internamente
-            logger.info(f"Transcribiendo audio: {audio_path}")
-            result = self.model.transcribe(
-                audio_path,
-                language="es",     # forzar español
-                fp16=False,        # en CPU debe ser False
-            )
-            texto = (result.get("text") or "").strip()
-            # duración aproximada (Whisper da tiempos por segmentos)
-            duration = 0.0
-            segments = result.get("segments") or []
-            if segments:
-                duration = float(segments[-1]["end"] - segments[0].get("start", 0.0))
-            language = result.get("language", "es")
+        inicio = time.time()
+        logger.info(f"Transcribiendo audio con Faster-Whisper: {audio_path}")
 
-            return {
-                "texto": texto,
-                "duracion": duration,
-                "idioma": language,
-                "segments": segments,
-            }
-        except Exception as e:
-            logger.error(f"Error al transcribir audio con Whisper: {e}")
-            return {
-                "texto": "",
-                "duracion": 0.0,
-                "idioma": "es",
-                "segments": [],
-            }
+        segments, info = self.model.transcribe(
+            audio_path,
+            language="es",
+            beam_size=5,
+            vad_filter=True,
+        )
 
+        texto = "".join(segment.text for segment in segments).strip()
+        duracion = float(getattr(info, "duration", 0.0) or 0.0)
+        fin = time.time()
+
+        logger.info(
+            f"Transcripción completada. Duración audio={duracion:.2f}s, "
+            f"tiempo_proceso={fin - inicio:.2f}s"
+        )
+
+        return {
+            "texto": texto,
+            "duracion": duracion,
+            "idioma": getattr(info, "language", "es"),
+            "tiempo_procesamiento": fin - inicio,
+        }
+
+    # ------------------- comparación textos -------------------
     def _comparar_textos(
         self,
         texto_referencia: str,
         texto_leido: str,
         duracion_segundos: float,
     ) -> Dict:
-        """
-        Compara el texto de referencia con el texto leído y genera:
-        - precisión global (por palabra)
-        - lista de errores detectados
-        - palabras por minuto
-        """
-        ref_tokens = self._normalizar_texto(texto_referencia)
-        leido_tokens = self._normalizar_texto(texto_leido)
+        ref_tokens = self._tokenizar(texto_referencia)
+        leido_tokens = self._tokenizar(texto_leido)
 
         matcher = SequenceMatcher(a=ref_tokens, b=leido_tokens)
-        errores: List[Dict] = []
-        palabras_correctas = 0
+        errores_detectados: List[Dict] = []
+
+        total_tokens_ref = len(ref_tokens)
+        tokens_correctos = 0
 
         for tag, i1, i2, j1, j2 in matcher.get_opcodes():
             if tag == "equal":
-                palabras_correctas += (i2 - i1)
-            elif tag in ("replace", "delete", "insert"):
-                # reemplazos / omisiones
-                if tag in ("replace", "delete"):
-                    for i in range(i1, i2):
-                        palabra_original = ref_tokens[i] if i < len(ref_tokens) else None
-                        palabra_detectada = None
-                        if tag == "replace":
-                            idx = j1 + (i - i1)
-                            if j1 <= idx < j2 and idx < len(leido_tokens):
-                                palabra_detectada = leido_tokens[idx]
-                        tipo_error = "sustitucion" if palabra_detectada else "omision"
+                tokens_correctos += (i2 - i1)
+                continue
 
-                        errores.append(
-                            {
-                                "tipo_error": tipo_error,
-                                "palabra_original": palabra_original,
-                                "palabra_detectada": palabra_detectada,
-                                "severidad": 3,
-                            }
-                        )
+            for i in range(i1, i2 or i1 + 1):
+                palabra_original = ref_tokens[i] if i < len(ref_tokens) else None
+                idx_leido = j1 + (i - i1)
+                palabra_leida = (
+                    leido_tokens[idx_leido]
+                    if 0 <= idx_leido < len(leido_tokens)
+                    else None
+                )
 
-                # inserciones (palabras extra)
-                if tag == "insert":
-                    for j in range(j1, j2):
-                        if j < len(leido_tokens):
-                            errores.append(
-                                {
-                                    "tipo_error": "insercion",
-                                    "palabra_original": None,
-                                    "palabra_detectada": leido_tokens[j],
-                                    "severidad": 2,
-                                }
-                            )
+                if tag == "insert" and palabra_original is None and j1 < len(leido_tokens):
+                    palabra_leida = leido_tokens[j1]
 
-        total_palabras_ref = len(ref_tokens)
-        if total_palabras_ref > 0:
-            precision_global = (palabras_correctas / total_palabras_ref) * 100.0
+                if self._es_puntuacion(palabra_original or "") or self._es_puntuacion(
+                    palabra_leida or ""
+                ):
+                    tipo_error = "puntuacion"
+                elif tag == "replace":
+                    tipo_error = "sustitucion"
+                elif tag == "delete":
+                    tipo_error = "omision"
+                elif tag == "insert":
+                    tipo_error = "insercion"
+                else:
+                    tipo_error = "otro"
+
+                errores_detectados.append(
+                    {
+                        "tipo_error": tipo_error,
+                        "palabra_original": palabra_original,
+                        "palabra_leida": palabra_leida,
+                        "posicion": i,
+                        "es_puntuacion": self._es_puntuacion(palabra_original or "")
+                        or self._es_puntuacion(palabra_leida or ""),
+                        "severidad": 3,
+                    }
+                )
+
+        # --------- precisión básica ---------
+        precision_global = 0.0
+        if total_tokens_ref > 0:
+            precision_global = (tokens_correctos / total_tokens_ref) * 100.0
+
+        # --------- TOLERANCIA / REDONDEO ---------
+        if errores_detectados:
+            solo_puntuacion = all(
+                (e.get("tipo_error") == "puntuacion") for e in errores_detectados
+            )
         else:
-            precision_global = 0.0
+            solo_puntuacion = False
 
+        # 1) Si la precisión es muy alta (>= 97), asumimos 100%
+        if precision_global >= 95.0:
+            precision_global = 100.0
+
+        # 2) Si los únicos errores son de puntuación y la precisión es alta (>= 90),
+        #    también subimos a 100%, para no castigar lecturas muy buenas
+        elif solo_puntuacion and precision_global >= 93.0:
+            precision_global = 100.0
+
+        # 3) Aseguramos rango 0–100
+        precision_global = max(0.0, min(precision_global, 100.0))
+
+        # Velocidad lectora
+        num_palabras_leidas = len(
+            [t for t in leido_tokens if not self._es_puntuacion(t)]
+        )
+        palabras_por_minuto = 0.0
         if duracion_segundos > 0:
-            palabras_por_minuto = len(leido_tokens) / (duracion_segundos / 60.0)
-        else:
-            palabras_por_minuto = 0.0
+            palabras_por_minuto = num_palabras_leidas / (duracion_segundos / 60.0)
 
-        resultado = {
+        return {
             "precision_global": precision_global,
-            "palabras_detectadas": leido_tokens,
-            "errores_detectados": errores,
             "palabras_por_minuto": palabras_por_minuto,
-            "pausas_detectadas": [],        # se puede mejorar luego
-            "entonacion_score": None,       # se puede añadir en el futuro
-            "ritmo_score": None,
+            "errores_detectados": errores_detectados,
+            "tokens_referencia": ref_tokens,
+            "tokens_leidos": leido_tokens,
         }
-        return resultado
 
-    def _generar_retroalimentacion(self, analisis: Dict) -> str:
-        """
-        Crea un mensaje de feedback general para el estudiante.
-        """
+    # ------------------- feedback -------------------
+    def _generar_feedback(self, analisis: Dict) -> str:
         precision = analisis.get("precision_global", 0.0)
-        wpm = analisis.get("palabras_por_minuto", 0.0)
+        errores = analisis.get("errores_detectados", [])
+
+        tiene_puntuacion = any(e.get("tipo_error") == "puntuacion" for e in errores)
 
         if precision >= 90:
-            msg_precision = "Excelente pronunciación 😄"
+            mensaje = "¡Excelente lectura! Casi no cometiste errores."
         elif precision >= 75:
-            msg_precision = "Muy buena pronunciación, sigue practicando 💪"
-        elif precision >= 50:
-            msg_precision = "Vas bien, pero aún puedes mejorar en varias palabras 🙂"
+            mensaje = "Muy bien, tu lectura es buena, pero podemos mejorar algunas palabras."
         else:
-            msg_precision = "Necesitas practicar más la pronunciación. ¡No te desanimes! 🌟"
+            mensaje = "Vamos a practicar las palabras y partes donde tuviste más dificultad."
 
-        if wpm < 60:
-            msg_velocidad = "La lectura es un poco lenta, intenta leer un poco más fluido."
-        elif wpm > 130:
-            msg_velocidad = "La lectura es muy rápida, trata de pausar en comas y puntos."
-        else:
-            msg_velocidad = "La velocidad de lectura es adecuada. ¡Buen ritmo!"
+        if tiene_puntuacion:
+            mensaje += " También revisaremos el uso de comas, puntos y signos de pregunta."
 
-        return f"{msg_precision} {msg_velocidad}"
+        if not errores:
+            mensaje += " No se detectaron errores importantes. ¡Sigue así!"
 
-    # ---------- MÉTODO PRINCIPAL ----------
+        return mensaje
 
+    # ------------------- flujo principal -------------------
     def analizar_lectura(
         self,
         db: Session,
         estudiante_id: int,
         contenido_id: int,
         audio_path: str,
+        evaluacion_id: Optional[int] = None,
     ) -> Dict:
-        """
-        Flujo principal:
-        - valida estudiante y contenido
-        - transcribe audio
-        - compara con el texto base
-        - guarda evaluación + análisis IA + errores
-        - retorna resultado para el frontend
-        """
-
-        # 1) Validar estudiante y contenido
         estudiante = db.query(Estudiante).filter(Estudiante.id == estudiante_id).first()
         if not estudiante:
             raise ValueError("Estudiante no encontrado")
@@ -218,103 +215,153 @@ class ServicioAnalisisLectura:
         if not contenido:
             raise ValueError("Contenido de lectura no encontrado")
 
-        texto_referencia = contenido.contenido  # ajusta al nombre real de tu campo
+        texto_referencia = contenido.contenido or ""
 
-        # 2) Transcribir audio
         transcripcion = self._transcribir_audio(audio_path)
         texto_leido = transcripcion["texto"]
         duracion = transcripcion["duracion"]
+        tiempo_procesamiento = transcripcion["tiempo_procesamiento"]
 
-        # 3) Analizar comparación
         analisis = self._comparar_textos(
             texto_referencia=texto_referencia,
             texto_leido=texto_leido,
             duracion_segundos=duracion,
         )
 
-        # 4) Crear EvaluacionLectura
-        evaluacion = EvaluacionLectura(
-            estudiante_id=estudiante_id,
-            contenido_id=contenido_id,
-            puntuacion_pronunciacion=analisis["precision_global"],
-            precision_palabras=analisis["precision_global"],
-            velocidad_lectura=analisis["palabras_por_minuto"],
-            fluidez=None,
-            retroalimentacion_ia=self._generar_retroalimentacion(analisis),
-            audio_url=audio_path,  # o ruta relativa si prefieres
-            duracion_audio=int(duracion) if duracion else None,
-            estado="completado",
-        )
-        db.add(evaluacion)
-        db.flush()  # para tener evaluacion.id
+        precision_global = analisis["precision_global"]
+        palabras_por_minuto = analisis["palabras_por_minuto"]
+        errores = analisis["errores_detectados"]
+        feedback = self._generar_feedback(analisis)
 
-        # 5) Guardar AnalisisIA
+        # Evaluación
+        if evaluacion_id is not None:
+            evaluacion = (
+                db.query(EvaluacionLectura)
+                .filter(
+                    EvaluacionLectura.id == evaluacion_id,
+                    EvaluacionLectura.estudiante_id == estudiante_id,
+                    EvaluacionLectura.contenido_id == contenido_id,
+                )
+                .first()
+            )
+            if not evaluacion:
+                raise ValueError("Evaluación de lectura no encontrada para actualizar.")
+        else:
+            evaluacion = EvaluacionLectura(
+                estudiante_id=estudiante_id,
+                contenido_id=contenido_id,
+            )
+            db.add(evaluacion)
+            db.flush()
+
+        evaluacion.puntuacion_pronunciacion = precision_global
+        evaluacion.velocidad_lectura = palabras_por_minuto
+        evaluacion.precision_palabras = precision_global
+        evaluacion.retroalimentacion_ia = feedback
+        evaluacion.audio_url = audio_path
+        evaluacion.duracion_audio = int(duracion) if duracion else None
+        evaluacion.estado = "completado"
+
+        # Intento
+        ultimo_intento = (
+            db.query(IntentoLectura)
+            .filter(IntentoLectura.evaluacion_id == evaluacion.id)
+            .order_by(IntentoLectura.numero_intento.desc())
+            .first()
+        )
+        numero_intento = 1 if not ultimo_intento else ultimo_intento.numero_intento + 1
+
+        intento = IntentoLectura(
+            evaluacion_id=evaluacion.id,
+            numero_intento=numero_intento,
+            puntuacion_pronunciacion=precision_global,
+            velocidad_lectura=palabras_por_minuto,
+            fluidez=None,
+            audio_url=audio_path,
+        )
+        db.add(intento)
+        db.flush()
+
+        # AnalisisIA
         analisis_ia = AnalisisIA(
             evaluacion_id=evaluacion.id,
-            modelo_usado="whisper-small-local",
-            precision_global=analisis["precision_global"],
-            palabras_detectadas=analisis["palabras_detectadas"],
-            errores_detectados=analisis["errores_detectados"],
-            tiempo_procesamiento=duracion,
-            palabras_por_minuto=analisis["palabras_por_minuto"],
-            pausas_detectadas=analisis["pausas_detectadas"],
-            entonacion_score=analisis["entonacion_score"],
-            ritmo_score=analisis["ritmo_score"],
+            modelo_usado="faster-whisper",
+            precision_global=precision_global,
+            palabras_detectadas=analisis["tokens_leidos"],
+            errores_detectados=errores,
+            tiempo_procesamiento=tiempo_procesamiento,
+            palabras_por_minuto=palabras_por_minuto,
         )
         db.add(analisis_ia)
+        db.flush()
 
-        # 6) Guardar detalles y errores por palabra (simplificado)
-        ref_tokens = self._normalizar_texto(texto_referencia)
-        for idx, palabra in enumerate(ref_tokens):
+        # Detalle + errores
+        for e in errores:
+            palabra = e.get("palabra_original") or e.get("palabra_leida") or ""
+            posicion = e.get("posicion", 0)
+
             detalle = DetalleEvaluacion(
                 evaluacion_id=evaluacion.id,
                 palabra=palabra,
-                posicion_en_texto=idx,
-                precision_pronunciacion=100.0,  # simple; se puede refinar
-                retroalimentacion_palabra=None,
+                posicion_en_texto=posicion,
+                precision_pronunciacion=max(0.0, precision_global - 20.0),
+                retroalimentacion_palabra="Necesitamos practicar esta parte.",
                 timestamp_inicio=None,
                 timestamp_fin=None,
-                tipo_tokenizacion="palabra",
-            )
-            db.add(detalle)
-
-        # errores concretos
-        for error in analisis["errores_detectados"]:
-            palabra = error.get("palabra_original") or (error.get("palabra_detectada") or "")
-            detalle = DetalleEvaluacion(
-                evaluacion_id=evaluacion.id,
-                palabra=palabra,
-                posicion_en_texto=0,
-                precision_pronunciacion=0.0,
-                retroalimentacion_palabra="Palabra con error de pronunciación",
-                timestamp_inicio=None,
-                timestamp_fin=None,
-                tipo_tokenizacion="palabra",
+                tipo_tokenizacion="palabra_puntuacion",
             )
             db.add(detalle)
             db.flush()
-            db.add(
-                ErrorPronunciacion(
-                    detalle_evaluacion_id=detalle.id,
-                    tipo_error=error.get("tipo_error", "desconocido"),
-                    palabra_original=error.get("palabra_original"),
-                    palabra_detectada=error.get("palabra_detectada"),
-                    timestamp_inicio=None,
-                    timestamp_fin=None,
-                    severidad=error.get("severidad", 3),
-                    sugerencia_correccion="Vuelve a practicar esta palabra en voz alta.",
-                )
+
+            error_db = ErrorPronunciacion(
+                detalle_evaluacion_id=detalle.id,
+                tipo_error=e.get("tipo_error", "otro"),
+                palabra_original=e.get("palabra_original"),
+                palabra_detectada=e.get("palabra_leida"),
+                timestamp_inicio=None,
+                timestamp_fin=None,
+                severidad=e.get("severidad", 3),
+                sugerencia_correccion="Repite esta palabra o signo de puntuación varias veces.",
             )
+            db.add(error_db)
 
         db.commit()
         db.refresh(evaluacion)
+        db.refresh(intento)
 
         return {
             "success": True,
             "evaluacion_id": evaluacion.id,
-            "precision_global": analisis["precision_global"],
-            "palabras_por_minuto": analisis["palabras_por_minuto"],
-            "errores": analisis["errores_detectados"],
+            "intento_id": intento.id,
+            "numero_intento": intento.numero_intento,
+            "precision_global": precision_global,
+            "palabras_por_minuto": palabras_por_minuto,
+            "errores": errores,
             "texto_transcrito": texto_leido,
-            "retroalimentacion": evaluacion.retroalimentacion_ia,
+            "retroalimentacion": feedback,
         }
+
+    def analizar_practica_ejercicio(
+        self,
+        texto_practica: str,
+        audio_path: str,
+    ) -> Dict:
+        """
+        Analiza un audio corto de práctica para un ejercicio específico.
+        """
+        transcripcion = self._transcribir_audio(audio_path)
+        texto_leido = transcripcion["texto"]
+        duracion = transcripcion["duracion"]
+
+        analisis = self._comparar_textos(
+            texto_referencia=texto_practica,
+            texto_leido=texto_leido,
+            duracion_segundos=duracion or 0.0,
+        )
+
+        feedback = self._generar_feedback(analisis)
+
+        analisis["texto_transcrito"] = texto_leido
+        analisis["retroalimentacion"] = feedback
+        analisis["duracion"] = duracion
+        return analisis

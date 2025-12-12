@@ -92,15 +92,19 @@ def vincular_hijo(
 # ============================================================
 # 4. LECTURAS DEL HIJO
 # ============================================================
+# app/routers/padres.py
+
 @router.get("/hijos/{hijo_id}/lecturas")
 def obtener_lecturas_hijo(
     hijo_id: int,
     db: Session = Depends(get_db),
-    usuario_actual = Depends(obtener_usuario_actual)
+    usuario_actual: Usuario = Depends(obtener_usuario_actual)
 ):
     padre = db.query(Padre).filter(Padre.usuario_id == usuario_actual.id).first()
-    estudiante = db.query(Estudiante).filter(Estudiante.id == hijo_id).first()
+    if not padre:
+        raise HTTPException(403, "No existe registro de padre para este usuario.")
 
+    estudiante = db.query(Estudiante).filter(Estudiante.id == hijo_id).first()
     if not estudiante:
         raise HTTPException(404, "El estudiante no existe.")
 
@@ -114,22 +118,37 @@ def obtener_lecturas_hijo(
     lecturas_finales = []
 
     for curso in cursos:
-        lecturas = db.query(ContenidoLectura).filter(
-            ContenidoLectura.curso_id == curso.id
-        ).all()
+        lecturas = (
+            db.query(ContenidoLectura)
+            .filter(ContenidoLectura.curso_id == curso.id)
+            .all()
+        )
 
         for lectura in lecturas:
-            actividades = db.query(Actividad).filter(
-                Actividad.contenido_lectura_id == lectura.id
-            ).all()
+            actividades = (
+                db.query(Actividad)
+                .filter(Actividad.contenido_id == lectura.id)
+                .all()
+            )
 
-            lecturas_finales.append({
-                "id": lectura.id,
-                "titulo": lectura.titulo,
-                "descripcion": lectura.descripcion,
-                "contenido": lectura.contenido,
-                "actividades": actividades,
-                "curso": curso.nombre
-            })
+            lecturas_finales.append(
+                {
+                    "id": lectura.id,
+                    "titulo": lectura.titulo,
+                    "contenido": lectura.contenido,
+                    "curso": curso.nombre,
+                    "nivel_dificultad": lectura.nivel_dificultad,
+                    "edad_recomendada": lectura.edad_recomendada,
+                    "actividades": [
+                        {
+                            "id": act.id,
+                            "tipo": act.tipo,
+                            "titulo": act.titulo,
+                            "puntos_maximos": act.puntos_maximos,
+                        }
+                        for act in actividades
+                    ],
+                }
+            )
 
     return lecturas_finales

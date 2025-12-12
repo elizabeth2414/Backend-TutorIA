@@ -34,6 +34,9 @@ from app.modelos.mision_diaria import MisionDiaria
 from app.modelos.historial_puntos import HistorialPuntos
 from app.modelos.auditoria import Auditoria
 from app.modelos.sesion_usuario import SesionUsuario
+from .historial_pronunciacion import HistorialPronunciacion
+from .historial_practica_pronunciacion import HistorialPracticaPronunciacion
+from .historial_mejoras_ia import HistorialMejorasIA
 
 __all__ = [
     "Base",

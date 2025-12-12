@@ -21,6 +21,11 @@ from app.routers import (
     padres,
     admin_dashboard,# 👈 ESTE VA AL FINAL
 )
+from app.routers import (
+    historial_pronunciacion,
+    historial_practica_pronunciacion,
+    historial_mejoras_ia,
+)
 
 api_router = APIRouter()
 
@@ -45,3 +50,6 @@ api_router.include_router(admin_dashboard.router)
 
 # 👇 USERS SIEMPRE AL FINAL
 api_router.include_router(usuarios.router)
+api_router.include_router(historial_pronunciacion.router)
+api_router.include_router(historial_practica_pronunciacion.router)
+api_router.include_router(historial_mejoras_ia.router)
