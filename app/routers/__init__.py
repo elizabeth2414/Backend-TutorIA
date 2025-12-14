@@ -19,7 +19,8 @@ from app.routers import (
     ia_actividades,
     usuarios, 
     padres,
-    admin_dashboard,# 👈 ESTE VA AL FINAL
+    admin_dashboard,
+    admin_estudiantes,
 )
 from app.routers import (
     historial_pronunciacion,
@@ -47,6 +48,7 @@ api_router.include_router(lecturas.router)
 api_router.include_router(ia_actividades.router)
 api_router.include_router(padres.router)
 api_router.include_router(admin_dashboard.router)
+api_router.include_router(admin_estudiantes.router)
 
 # 👇 USERS SIEMPRE AL FINAL
 api_router.include_router(usuarios.router)
