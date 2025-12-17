@@ -173,12 +173,12 @@ class ServicioAnalisisLectura:
         p = analisis.get("precision_global", 0)
 
         if p >= 95:
-            return "¡Excelente! Leíste muy bien 🌟"
+            return "¡Excelente! Leíste muy bien 🎉"
         if p >= 85:
             return "¡Muy bien! Cada vez lees mejor 👏"
         if p >= 70:
-            return "Buen intento, vamos a practicar un poco más 😊"
-        return "Lo hiciste con valentía. Practicando mejorarás 💪"
+            return "Buen intento, vamos a practicar un poco más 💪"
+        return "Lo hiciste con valentía. Practicando mejorarás 🌟"
 
     # ================= FLUJO PRINCIPAL =================
     def analizar_lectura(
@@ -228,4 +228,36 @@ class ServicioAnalisisLectura:
             "errores": analisis["errores_detectados"],
             "texto_transcrito": trans["texto"],
             "retroalimentacion": feedback,
+        }
+
+    # ================= PRÁCTICA DE EJERCICIOS =================
+    def analizar_practica_ejercicio(
+        self,
+        texto_practica: str,
+        audio_path: str,
+    ) -> Dict:
+        """
+        Analiza un ejercicio de práctica específico.
+        No guarda en BD, solo retorna el análisis.
+        """
+        logger.info(f"🎯 Analizando práctica de ejercicio | audio={audio_path}")
+
+        trans = self._transcribir_audio(audio_path)
+        analisis = self._comparar_textos(
+            texto_practica,
+            trans["texto"],
+            trans["duracion"],
+        )
+
+        logger.info(
+            f"✅ Análisis de práctica completado | "
+            f"precisión={analisis['precision_global']:.1f}% | "
+            f"errores={len(analisis['errores_detectados'])}"
+        )
+
+        return {
+            "precision_global": analisis["precision_global"],
+            "palabras_por_minuto": analisis["palabras_por_minuto"],
+            "errores_detectados": analisis["errores_detectados"],
+            "texto_transcrito": trans["texto"],
         }

@@ -101,3 +101,6 @@ class GeneradorEjercicios:
 
         db.commit()
         return ejercicios_ids
+    
+
+    

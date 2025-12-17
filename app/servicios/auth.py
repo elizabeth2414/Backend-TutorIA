@@ -6,9 +6,9 @@ from app import settings
 from app.modelos import Usuario, UsuarioRol
 from app.esquemas.auth import UsuarioCreate, CambioPassword
 from app.servicios.seguridad import (
-    verificar_password, obtener_password_hash, 
-    crear_token_acceso, obtener_usuario_actual
+    verificar_password, obtener_password_hash
 )
+
 
 def autenticar_usuario(db: Session, email: str, password: str):
     usuario = db.query(Usuario).filter(Usuario.email == email).first()

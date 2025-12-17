@@ -28,7 +28,7 @@ TTS_DIR = "uploads/tts"
 PRACTICA_AUDIO_DIR = "uploads/practica"
 
 analizador = ServicioAnalisisLectura(modelo="small")
-manager_ia = ManagerAprendizajeIA()
+manager_ia = ManagerAprendizajeIA()  # ✅ Ya lo tienes instanciado
 
 
 def _asegurar_directorios() -> None:
@@ -56,11 +56,6 @@ def _verificar_estudiante_de_padre(
     padre: Padre,
     estudiante_id: int,
 ) -> Estudiante:
-    """
-    Verifica que el estudiante pertenezca a este padre.
-    Asume relación Estudiante.padre_id -> Padre.id
-    (ajusta aquí si usas acceso_padre u otra tabla intermedia).
-    """
     estudiante = (
         db.query(Estudiante)
         .filter(
@@ -78,7 +73,7 @@ def _verificar_estudiante_de_padre(
 
 
 # ============================================================
-# 1. Obtener texto de la lectura (para mostrar en pantalla)
+# 1. Obtener texto de la lectura
 # ============================================================
 @router.get("/lectura-texto/{contenido_id}")
 def obtener_texto_lectura(
@@ -86,9 +81,6 @@ def obtener_texto_lectura(
     db: Session = Depends(get_db),
     usuario_actual: Usuario = Depends(obtener_usuario_actual),
 ):
-    """
-    Devuelve el título y el contenido de la lectura.
-    """
     contenido = (
         db.query(ContenidoLectura)
         .filter(ContenidoLectura.id == contenido_id)
@@ -105,9 +97,7 @@ def obtener_texto_lectura(
 
 
 # ============================================================
-# 2. Obtener audio de la lectura (TTS o audio grabado)
-#    Por ahora asumimos que todavía no tienes TTS en backend
-#    así que opcionalmente podrías servir un MP3 si existe.
+# 2. Obtener audio de la lectura
 # ============================================================
 @router.get("/lectura-audio/{contenido_id}")
 def obtener_audio_lectura(
@@ -115,11 +105,6 @@ def obtener_audio_lectura(
     db: Session = Depends(get_db),
     usuario_actual: Usuario = Depends(obtener_usuario_actual),
 ):
-    """
-    En este ejemplo, si tuvieras un audio guardado en disco
-    podrías devolverlo aquí. Por ahora asumimos que no, y el
-    frontend usa TTS del navegador o solo muestra el texto.
-    """
     contenido = (
         db.query(ContenidoLectura)
         .filter(ContenidoLectura.id == contenido_id)
@@ -131,12 +116,11 @@ def obtener_audio_lectura(
     if contenido.audio_url and os.path.exists(contenido.audio_url):
         return FileResponse(contenido.audio_url, media_type="audio/mpeg")
 
-    # Si no hay audio físico, devolvemos 404 y el front puede usar TTS del navegador
     raise HTTPException(status_code=404, detail="No hay audio disponible para esta lectura.")
 
 
 # ============================================================
-# 3. Analizar lectura completa (padre logueado, hijo seleccionado)
+# 3. ✅ ANALIZAR LECTURA COMPLETA CON EJERCICIOS
 # ============================================================
 @router.post("/analizar-lectura")
 async def analizar_lectura_endpoint(
@@ -148,9 +132,8 @@ async def analizar_lectura_endpoint(
     usuario_actual: Usuario = Depends(obtener_usuario_actual),
 ):
     """
-    El padre está logueado, pero enviamos estudiante_id desde el front
-    (niño seleccionado en el panel del padre). Aquí verificamos que ese
-    estudiante realmente pertenezca a este padre.
+    ✅ CAMBIO CLAVE: Ahora usa manager_ia.procesar_lectura()
+    que incluye tanto el análisis como la generación de ejercicios.
     """
     _asegurar_directorios()
 
@@ -166,13 +149,16 @@ async def analizar_lectura_endpoint(
             contenido_bytes = await audio.read()
             f.write(contenido_bytes)
 
-        resultado = analizador.analizar_lectura(
+        # ✅ CAMBIO: Usar manager_ia en lugar de analizador directamente
+        resultado = manager_ia.procesar_lectura(
             db=db,
             estudiante_id=estudiante_id,
             contenido_id=contenido_id,
             audio_path=audio_path,
             evaluacion_id=evaluacion_id,
         )
+
+        logger.info(f"✅ Análisis completo | Ejercicios generados: {len(resultado.get('ejercicios_recomendados', []))}")
 
         return resultado
 
@@ -184,7 +170,7 @@ async def analizar_lectura_endpoint(
 
 
 # ============================================================
-# 4. Práctica de ejercicio (IA didáctica)
+# 4. Práctica de ejercicio
 # ============================================================
 @router.post("/practicar-ejercicio")
 async def practicar_ejercicio_endpoint(
@@ -194,23 +180,25 @@ async def practicar_ejercicio_endpoint(
     db: Session = Depends(get_db),
     usuario_actual: Usuario = Depends(obtener_usuario_actual),
 ):
-    """
-    El padre selecciona un ejercicio para el hijo.
-    Verificamos que el estudiante pertenezca al padre.
-    """
+    logger.info(f"📥 Recibida petición de práctica | estudiante={estudiante_id} | ejercicio={ejercicio_id}")
+    
     _asegurar_directorios()
 
-    padre = _obtener_padre_actual(db, usuario_actual)
-    _verificar_estudiante_de_padre(db, padre, estudiante_id)
-
-    ext = os.path.splitext(audio.filename or "")[1] or ".wav"
-    filename = f"practica_{ejercicio_id}_{uuid.uuid4().hex}{ext}"
-    audio_path = os.path.join(PRACTICA_AUDIO_DIR, filename)
-
     try:
+        padre = _obtener_padre_actual(db, usuario_actual)
+        _verificar_estudiante_de_padre(db, padre, estudiante_id)
+
+        ext = os.path.splitext(audio.filename or "")[1] or ".wav"
+        filename = f"practica_{ejercicio_id}_{uuid.uuid4().hex}{ext}"
+        audio_path = os.path.join(PRACTICA_AUDIO_DIR, filename)
+
+        logger.info(f"💾 Guardando audio | path={audio_path}")
+        
         with open(audio_path, "wb") as f:
             contenido_bytes = await audio.read()
             f.write(contenido_bytes)
+
+        logger.info(f"✅ Audio guardado | size={len(contenido_bytes)} bytes")
 
         resultado = manager_ia.practicar_ejercicio(
             db=db,
@@ -219,32 +207,14 @@ async def practicar_ejercicio_endpoint(
             audio_path=audio_path,
         )
 
+        logger.info("🎉 Práctica completada exitosamente")
         return resultado
 
     except HTTPException:
         raise
+    except ValueError as ve:
+        logger.error(f"❌ Error de validación: {ve}")
+        raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
-        logger.exception("Error al analizar práctica de ejercicio con IA")
-        raise HTTPException(status_code=500, detail=str(e))
-    
-    # app/routers/ia_routes.py
-@router.get("/lectura-texto/{contenido_id}")
-def obtener_texto_lectura(
-    contenido_id: int,
-    db: Session = Depends(get_db),
-    usuario_actual: Usuario = Depends(obtener_usuario_actual),
-):
-    contenido = (
-        db.query(ContenidoLectura)
-        .filter(ContenidoLectura.id == contenido_id)
-        .first()
-    )
-    if not contenido:
-        raise HTTPException(status_code=404, detail="Contenido de lectura no encontrado.")
-
-    return {
-        "id": contenido.id,
-        "titulo": contenido.titulo,
-        "contenido": contenido.contenido,
-    }
-
+        logger.exception("❌ Error al analizar práctica de ejercicio con IA")
+        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
