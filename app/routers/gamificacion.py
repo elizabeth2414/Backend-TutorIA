@@ -16,7 +16,7 @@ from app.servicios.gamificacion import (
     agregar_puntos_estudiante, obtener_historial_puntos_estudiante
 )
 from app.servicios.seguridad import obtener_usuario_actual
-from app.modelos import Usuario
+from app.modelos import Usuario, Estudiante, NivelEstudiante
 
 router = APIRouter(prefix="/gamificacion", tags=["gamificacion"])
 
@@ -119,3 +119,38 @@ def listar_historial_puntos_estudiante(
 ):
     """Listar historial de puntos de un estudiante"""
     return obtener_historial_puntos_estudiante(db, estudiante_id, skip, limit)
+
+
+@router.get("/estudiante/{estudiante_id}/progreso")
+def obtener_progreso_estudiante(
+    estudiante_id: int,
+    db: Session = Depends(get_db),
+    usuario_actual: Usuario = Depends(obtener_usuario_actual)
+):
+    """
+    Obtener progreso gamificado del estudiante
+    (nivel, puntos, racha, etc.)
+    """
+
+    estudiante = db.query(Estudiante).filter(
+        Estudiante.id == estudiante_id
+    ).first()
+
+    if not estudiante:
+        raise HTTPException(status_code=404, detail="Estudiante no encontrado")
+
+    nivel = db.query(NivelEstudiante).filter(
+        NivelEstudiante.estudiante_id == estudiante_id
+    ).first()
+
+    if not nivel:
+        raise HTTPException(status_code=404, detail="Progreso del estudiante no encontrado")
+
+    return {
+        "id": estudiante.id,
+        "nombre": estudiante.nombre,
+        "nivel_actual": nivel.nivel_actual,
+        "xp_actual": nivel.puntos_nivel_actual,
+        "xp_para_siguiente_nivel": nivel.puntos_para_siguiente_nivel,
+        "racha_actual": nivel.racha_actual,
+    }
