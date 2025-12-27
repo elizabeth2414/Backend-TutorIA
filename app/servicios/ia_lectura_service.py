@@ -205,6 +205,7 @@ class ServicioAnalisisLectura:
 
         feedback = self._generar_feedback(analisis)
 
+        # 1. Crear evaluación general
         evaluacion = EvaluacionLectura(
             estudiante_id=estudiante_id,
             contenido_id=contenido_id,
@@ -220,6 +221,19 @@ class ServicioAnalisisLectura:
         db.commit()
         db.refresh(evaluacion)
 
+        logger.info(
+            f"✅ Evaluación creada: ID={evaluacion.id}, "
+            f"Precisión={analisis['precision_global']:.1f}%"
+        )
+
+        # 2. Guardar detalles por palabra y errores de pronunciación
+        self._guardar_detalles_y_errores(
+            db=db,
+            evaluacion_id=evaluacion.id,
+            tokens_leidos=analisis.get("tokens_leidos", []),
+            errores_detectados=analisis.get("errores_detectados", [])
+        )
+
         return {
             "success": True,
             "evaluacion_id": evaluacion.id,
@@ -229,6 +243,94 @@ class ServicioAnalisisLectura:
             "texto_transcrito": trans["texto"],
             "retroalimentacion": feedback,
         }
+
+    def _guardar_detalles_y_errores(
+        self,
+        db: Session,
+        evaluacion_id: int,
+        tokens_leidos: List[str],
+        errores_detectados: List[Dict]
+    ):
+        """
+        Guarda DetalleEvaluacion y ErrorPronunciacion en la BD.
+
+        Esta función persiste:
+        - Un DetalleEvaluacion por cada error detectado (palabra con problema)
+        - Un ErrorPronunciacion por cada error, asociado a su detalle
+
+        Args:
+            db: Sesión de base de datos
+            evaluacion_id: ID de la evaluación recién creada
+            tokens_leidos: Lista de tokens que el estudiante leyó
+            errores_detectados: Lista de errores detectados por el análisis
+        """
+        if not errores_detectados:
+            logger.info(
+                f"📊 No hay errores que guardar para evaluación {evaluacion_id}"
+            )
+            return
+
+        total_detalles = 0
+        total_errores = 0
+
+        # Para cada error, crear un DetalleEvaluacion y un ErrorPronunciacion
+        for error in errores_detectados:
+            palabra_original = error.get("palabra_original")
+            palabra_leida = error.get("palabra_leida")
+            posicion = error.get("posicion", 0)
+            tipo_error = error.get("tipo_error", "otro")
+            severidad = error.get("severidad", 2)
+
+            # Calcular precisión de la palabra (0 si hay error)
+            if palabra_original and palabra_leida:
+                precision_palabra = self._similitud_palabra(
+                    palabra_original, palabra_leida
+                ) * 100
+            else:
+                precision_palabra = 0.0
+
+            # Crear DetalleEvaluacion para esta palabra
+            detalle = DetalleEvaluacion(
+                evaluacion_id=evaluacion_id,
+                palabra=palabra_original or palabra_leida or "?",
+                posicion_en_texto=posicion,
+                precision_pronunciacion=precision_palabra,
+                retroalimentacion_palabra=(
+                    f"Error de {tipo_error}: "
+                    f"esperado '{palabra_original}', "
+                    f"leído '{palabra_leida}'"
+                ),
+                tipo_tokenizacion="word"
+            )
+
+            db.add(detalle)
+            db.flush()  # Obtener el ID del detalle
+            total_detalles += 1
+
+            # Crear ErrorPronunciacion asociado a este detalle
+            error_pronunciacion = ErrorPronunciacion(
+                detalle_evaluacion_id=detalle.id,
+                tipo_error=tipo_error,
+                palabra_original=palabra_original,
+                palabra_detectada=palabra_leida,
+                severidad=severidad,
+                sugerencia_correccion=(
+                    f"Practica pronunciar la palabra '{palabra_original}' "
+                    f"correctamente. Escucha el audio de referencia."
+                )
+            )
+
+            db.add(error_pronunciacion)
+            total_errores += 1
+
+        # Commit de todos los detalles y errores
+        db.commit()
+
+        logger.info(
+            f"💾 Guardados {total_detalles} detalles de evaluación y "
+            f"{total_errores} errores de pronunciación para "
+            f"evaluación {evaluacion_id}"
+        )
 
     # ================= PRÁCTICA DE EJERCICIOS =================
     def analizar_practica_ejercicio(

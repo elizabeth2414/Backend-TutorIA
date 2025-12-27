@@ -3,7 +3,15 @@ from collections import defaultdict
 
 from sqlalchemy.orm import Session
 
-from app.modelos import EjercicioPractica, FragmentoPractica, Estudiante
+from app.modelos import (
+    EjercicioPractica,
+    FragmentoPractica,
+    Estudiante,
+    ErrorPronunciacion,
+    DetalleEvaluacion,
+    EvaluacionLectura
+)
+from app.logs.logger import logger
 
 
 class GeneradorEjercicios:
@@ -101,6 +109,82 @@ class GeneradorEjercicios:
 
         db.commit()
         return ejercicios_ids
-    
 
-    
+    def crear_ejercicios_desde_bd(
+        self,
+        db: Session,
+        evaluacion_id: int
+    ) -> List[int]:
+        """
+        Crea ejercicios consultando los errores directamente desde la BD.
+
+        Ventajas sobre crear_ejercicios_desde_errores:
+        - No requiere pasar los errores como parámetro
+        - Usa los datos ya persistidos en BD
+        - Permite crear ejercicios después de la evaluación
+        - Puede regenerar ejercicios si se necesita
+
+        Args:
+            db: Sesión de base de datos
+            evaluacion_id: ID de la evaluación
+
+        Returns:
+            Lista de IDs de ejercicios creados
+        """
+        # Obtener la evaluación para verificar que existe y obtener estudiante_id
+        evaluacion = db.query(EvaluacionLectura).filter(
+            EvaluacionLectura.id == evaluacion_id
+        ).first()
+
+        if not evaluacion:
+            logger.warning(
+                f"Evaluación {evaluacion_id} no encontrada, "
+                f"no se pueden crear ejercicios"
+            )
+            return []
+
+        # Consultar errores desde la BD
+        errores_bd = db.query(ErrorPronunciacion).join(
+            DetalleEvaluacion,
+            ErrorPronunciacion.detalle_evaluacion_id == DetalleEvaluacion.id
+        ).filter(
+            DetalleEvaluacion.evaluacion_id == evaluacion_id
+        ).all()
+
+        if not errores_bd:
+            logger.info(
+                f"No hay errores guardados para evaluación {evaluacion_id}, "
+                f"no se crean ejercicios"
+            )
+            return []
+
+        # Convertir errores de BD a formato Dict para reusar lógica existente
+        errores_dict = [
+            {
+                "tipo_error": error.tipo_error,
+                "palabra_original": error.palabra_original,
+                "palabra_leida": error.palabra_detectada,
+                "severidad": error.severidad
+            }
+            for error in errores_bd
+        ]
+
+        logger.info(
+            f"📚 Creando ejercicios desde {len(errores_dict)} errores guardados "
+            f"en BD para evaluación {evaluacion_id}"
+        )
+
+        # Reusar la lógica existente de crear_ejercicios_desde_errores
+        ejercicios_ids = self.crear_ejercicios_desde_errores(
+            db=db,
+            estudiante_id=evaluacion.estudiante_id,
+            evaluacion_id=evaluacion_id,
+            errores=errores_dict
+        )
+
+        logger.info(
+            f"✅ {len(ejercicios_ids)} ejercicios creados desde BD "
+            f"para evaluación {evaluacion_id}"
+        )
+
+        return ejercicios_ids
