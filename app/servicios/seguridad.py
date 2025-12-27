@@ -106,7 +106,72 @@ async def obtener_usuario_actual(
 
 
 # ==============================
-# RESTRICCIÓN POR ROL: ADMIN
+# VALIDACIÓN DE ROLES
+# ==============================
+
+from app.logs.logger import logger
+from typing import List
+
+
+def verificar_rol(
+    db: Session,
+    usuario_id: int,
+    rol_requerido: str,
+    verificar_activo: bool = True
+) -> bool:
+    """
+    Función auxiliar que verifica si un usuario tiene un rol específico.
+
+    Args:
+        db: Sesión de base de datos
+        usuario_id: ID del usuario a verificar
+        rol_requerido: Rol a verificar ('admin', 'docente', 'estudiante', 'padre')
+        verificar_activo: Si True, solo considera roles activos
+
+    Returns:
+        bool: True si el usuario tiene el rol, False en caso contrario
+    """
+    query = db.query(UsuarioRol).filter(
+        UsuarioRol.usuario_id == usuario_id,
+        UsuarioRol.rol == rol_requerido.lower()
+    )
+
+    if verificar_activo:
+        query = query.filter(UsuarioRol.activo == True)
+
+    rol = query.first()
+    return rol is not None
+
+
+def obtener_roles_usuario(
+    db: Session,
+    usuario_id: int,
+    solo_activos: bool = True
+) -> List[str]:
+    """
+    Obtiene todos los roles de un usuario.
+
+    Args:
+        db: Sesión de base de datos
+        usuario_id: ID del usuario
+        solo_activos: Si True, solo retorna roles activos
+
+    Returns:
+        List[str]: Lista de roles del usuario (ej: ['admin', 'docente'])
+    """
+    query = db.query(UsuarioRol.rol).filter(
+        UsuarioRol.usuario_id == usuario_id
+    )
+
+    if solo_activos:
+        query = query.filter(UsuarioRol.activo == True)
+
+    roles = query.all()
+    return [rol[0] for rol in roles]
+
+
+# ==============================
+# DEPENDENCIES DE VALIDACIÓN DE ROLES
 # ==============================
 
 def requiere_admin(
@@ -114,59 +179,280 @@ def requiere_admin(
     db: Session = Depends(get_db)
 ) -> Usuario:
     """
-    Verifica que el usuario autenticado tenga rol 'admin'.
-    Se usa como dependencia en los endpoints de administración.
-    """
-    tiene_admin = (
-        db.query(UsuarioRol)
-        .filter(
-            UsuarioRol.usuario_id == usuario.id,
-            UsuarioRol.rol == "admin",
-            UsuarioRol.activo == True,
-        )
-        .first()
-    )
+    Dependency que verifica que el usuario autenticado tenga rol 'admin'.
 
-    if not tiene_admin:
+    Uso:
+        @router.post("/admin/recurso")
+        def crear_recurso(
+            admin: Usuario = Depends(requiere_admin)
+        ):
+            # Solo usuarios con rol admin pueden acceder
+            ...
+
+    Args:
+        usuario: Usuario autenticado (inyectado automáticamente)
+        db: Sesión de base de datos (inyectada automáticamente)
+
+    Returns:
+        Usuario: El usuario autenticado con rol admin
+
+    Raises:
+        HTTPException 403: Si el usuario no tiene rol admin
+    """
+    tiene_rol = verificar_rol(db, usuario.id, "admin")
+
+    if not tiene_rol:
+        logger.warning(
+            f"⚠️ Acceso denegado: {usuario.email} intentó acceder a endpoint admin sin permisos"
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="No tienes permisos de administrador",
+            detail="Acceso denegado: se requiere rol de administrador"
         )
 
+    logger.debug(f"✅ Acceso admin autorizado: {usuario.email}")
     return usuario
 
 def requiere_docente(
-    usuario_actual: Usuario = Depends(obtener_usuario_actual),
+    usuario: Usuario = Depends(obtener_usuario_actual),
     db: Session = Depends(get_db)
-):
-    # Verificar si el usuario tiene el rol docente
-    rol_docente = (
-        db.query(UsuarioRol)
-        .filter(UsuarioRol.usuario_id == usuario_actual.id)
-        .filter(UsuarioRol.rol == "docente")
-        .first()
-    )
+) -> Usuario:
+    """
+    Dependency que verifica que el usuario autenticado tenga rol 'docente'.
 
-    if not rol_docente:
+    Uso:
+        @router.get("/docentes/mis-cursos")
+        def obtener_mis_cursos(
+            docente: Usuario = Depends(requiere_docente)
+        ):
+            # Solo docentes pueden acceder
+            ...
+
+    Args:
+        usuario: Usuario autenticado (inyectado automáticamente)
+        db: Sesión de base de datos (inyectada automáticamente)
+
+    Returns:
+        Usuario: El usuario autenticado con rol docente
+
+    Raises:
+        HTTPException 403: Si el usuario no tiene rol docente
+    """
+    tiene_rol = verificar_rol(db, usuario.id, "docente")
+
+    if not tiene_rol:
+        logger.warning(
+            f"⚠️ Acceso denegado: {usuario.email} intentó acceder a endpoint docente sin permisos"
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Acceso restringido: se requiere rol DOCENTE"
+            detail="Acceso denegado: se requiere rol de docente"
         )
 
-    # Obtener el registro de docente
-    docente = (
-        db.query(Docente)
-        .filter(Docente.usuario_id == usuario_actual.id)
-        .first()
-    )
+    logger.debug(f"✅ Acceso docente autorizado: {usuario.email}")
+    return usuario
 
-    if not docente:
+
+def requiere_estudiante(
+    usuario: Usuario = Depends(obtener_usuario_actual),
+    db: Session = Depends(get_db)
+) -> Usuario:
+    """
+    Dependency que verifica que el usuario autenticado tenga rol 'estudiante'.
+
+    Uso:
+        @router.get("/estudiantes/mi-progreso")
+        def obtener_mi_progreso(
+            estudiante: Usuario = Depends(requiere_estudiante)
+        ):
+            # Solo estudiantes pueden acceder
+            ...
+
+    Args:
+        usuario: Usuario autenticado (inyectado automáticamente)
+        db: Sesión de base de datos (inyectada automáticamente)
+
+    Returns:
+        Usuario: El usuario autenticado con rol estudiante
+
+    Raises:
+        HTTPException 403: Si el usuario no tiene rol estudiante
+    """
+    tiene_rol = verificar_rol(db, usuario.id, "estudiante")
+
+    if not tiene_rol:
+        logger.warning(
+            f"⚠️ Acceso denegado: {usuario.email} intentó acceder a endpoint estudiante sin permisos"
+        )
         raise HTTPException(
-            status_code=404,
-            detail="No se encontró el perfil de docente"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acceso denegado: se requiere rol de estudiante"
         )
 
-    return docente
+    logger.debug(f"✅ Acceso estudiante autorizado: {usuario.email}")
+    return usuario
+
+
+def requiere_padre(
+    usuario: Usuario = Depends(obtener_usuario_actual),
+    db: Session = Depends(get_db)
+) -> Usuario:
+    """
+    Dependency que verifica que el usuario autenticado tenga rol 'padre'.
+
+    Uso:
+        @router.get("/padres/mis-hijos")
+        def obtener_mis_hijos(
+            padre: Usuario = Depends(requiere_padre)
+        ):
+            # Solo padres pueden acceder
+            ...
+
+    Args:
+        usuario: Usuario autenticado (inyectado automáticamente)
+        db: Sesión de base de datos (inyectada automáticamente)
+
+    Returns:
+        Usuario: El usuario autenticado con rol padre
+
+    Raises:
+        HTTPException 403: Si el usuario no tiene rol padre
+    """
+    tiene_rol = verificar_rol(db, usuario.id, "padre")
+
+    if not tiene_rol:
+        logger.warning(
+            f"⚠️ Acceso denegado: {usuario.email} intentó acceder a endpoint padre sin permisos"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acceso denegado: se requiere rol de padre/tutor"
+        )
+
+    logger.debug(f"✅ Acceso padre autorizado: {usuario.email}")
+    return usuario
+
+
+def requiere_cualquier_rol(*roles_permitidos: str):
+    """
+    Factory function que crea una dependency que verifica múltiples roles.
+
+    El usuario debe tener AL MENOS UNO de los roles especificados.
+
+    Uso:
+        @router.get("/recursos/compartidos")
+        def obtener_recursos_compartidos(
+            usuario: Usuario = Depends(requiere_cualquier_rol("admin", "docente"))
+        ):
+            # Administradores O docentes pueden acceder
+            ...
+
+    Args:
+        *roles_permitidos: Roles permitidos (ej: "admin", "docente", "estudiante")
+
+    Returns:
+        Callable: Dependency function que verifica los roles
+
+    Example:
+        # Permitir admin O docente
+        @router.post("/contenido")
+        def crear_contenido(
+            usuario: Usuario = Depends(requiere_cualquier_rol("admin", "docente"))
+        ):
+            ...
+
+        # Permitir admin O docente O padre
+        @router.get("/estudiantes/{id}/progreso")
+        def ver_progreso(
+            estudiante_id: int,
+            usuario: Usuario = Depends(requiere_cualquier_rol("admin", "docente", "padre"))
+        ):
+            ...
+    """
+    def dependency(
+        usuario: Usuario = Depends(obtener_usuario_actual),
+        db: Session = Depends(get_db)
+    ) -> Usuario:
+        # Obtener todos los roles del usuario
+        roles_usuario = obtener_roles_usuario(db, usuario.id)
+
+        # Verificar si tiene al menos uno de los roles permitidos
+        roles_permitidos_lower = [r.lower() for r in roles_permitidos]
+        tiene_acceso = any(rol in roles_permitidos_lower for rol in roles_usuario)
+
+        if not tiene_acceso:
+            roles_str = ", ".join(roles_permitidos)
+            logger.warning(
+                f"⚠️ Acceso denegado: {usuario.email} intentó acceder sin roles requeridos. "
+                f"Tiene: {roles_usuario}, Necesita: [{roles_str}]"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Acceso denegado: se requiere uno de los siguientes roles: {roles_str}"
+            )
+
+        logger.debug(f"✅ Acceso autorizado: {usuario.email} con roles {roles_usuario}")
+        return usuario
+
+    return dependency
+
+
+def requiere_todos_los_roles(*roles_requeridos: str):
+    """
+    Factory function que crea una dependency que verifica múltiples roles.
+
+    El usuario debe tener TODOS los roles especificados.
+
+    Uso:
+        @router.get("/admin/docentes/estadisticas")
+        def estadisticas_avanzadas(
+            usuario: Usuario = Depends(requiere_todos_los_roles("admin", "docente"))
+        ):
+            # Solo usuarios que son TANTO admin COMO docente pueden acceder
+            ...
+
+    Args:
+        *roles_requeridos: Roles requeridos (todos deben estar presentes)
+
+    Returns:
+        Callable: Dependency function que verifica los roles
+
+    Example:
+        # Requiere tener ambos roles
+        @router.post("/cursos/especiales")
+        def crear_curso_especial(
+            usuario: Usuario = Depends(requiere_todos_los_roles("admin", "docente"))
+        ):
+            # El usuario debe ser admin Y docente
+            ...
+    """
+    def dependency(
+        usuario: Usuario = Depends(obtener_usuario_actual),
+        db: Session = Depends(get_db)
+    ) -> Usuario:
+        # Obtener todos los roles del usuario
+        roles_usuario = obtener_roles_usuario(db, usuario.id)
+
+        # Verificar si tiene TODOS los roles requeridos
+        roles_requeridos_lower = [r.lower() for r in roles_requeridos]
+        tiene_todos = all(rol in roles_usuario for rol in roles_requeridos_lower)
+
+        if not tiene_todos:
+            roles_str = ", ".join(roles_requeridos)
+            faltantes = [r for r in roles_requeridos_lower if r not in roles_usuario]
+            logger.warning(
+                f"⚠️ Acceso denegado: {usuario.email} no tiene todos los roles requeridos. "
+                f"Tiene: {roles_usuario}, Faltan: {faltantes}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Acceso denegado: se requieren TODOS los siguientes roles: {roles_str}"
+            )
+
+        logger.debug(f"✅ Acceso autorizado: {usuario.email} tiene todos los roles requeridos")
+        return usuario
+
+    return dependency
 
 def asignar_rol(db: Session, usuario_id: int, rol: str):
     rol = rol.lower()  # 👈 IMPORTANTE
