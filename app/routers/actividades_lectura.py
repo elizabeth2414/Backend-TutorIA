@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from pydantic import BaseModel
 
 from app.config import get_db
 from app.modelos import Usuario
@@ -21,6 +22,7 @@ from app.servicios.actividad_lectura import (
     obtener_actividades_por_edad,
     obtener_actividades_generadas_ia
 )
+from app.servicios.generador_actividades_ia import generador_actividades
 
 router = APIRouter(prefix="/actividades-lectura", tags=["actividades-lectura"])
 
@@ -139,3 +141,104 @@ def desactivar_actividad(
     Requiere autenticación (docente o admin).
     """
     return eliminar_actividad_lectura(db, actividad_id)
+
+
+# ================================================================
+# 🤖 GENERACIÓN AUTOMÁTICA CON IA
+# ================================================================
+
+class GenerarActividadesRequest(BaseModel):
+    """Request para generar actividades automáticamente"""
+    num_actividades: int = 5
+    tipos: Optional[List[str]] = None
+
+
+class GenerarActividadesResponse(BaseModel):
+    """Response de generación de actividades"""
+    lectura_id: int
+    lectura_titulo: str
+    total_generadas: int
+    actividades: List[ActividadLecturaResponse]
+
+
+@router.post("/generar/{lectura_id}", response_model=GenerarActividadesResponse)
+def generar_actividades_automaticas(
+    lectura_id: int,
+    request: GenerarActividadesRequest = GenerarActividadesRequest(),
+    db: Session = Depends(get_db),
+    usuario_actual: Usuario = Depends(obtener_usuario_actual)
+):
+    """
+    🤖 **Generar actividades automáticamente con IA** para una lectura.
+
+    El sistema analiza el texto de la lectura y genera automáticamente:
+    - Preguntas de comprensión lectora
+    - Preguntas de vocabulario
+    - Preguntas sobre la idea principal
+    - Preguntas de inferencia
+    - Preguntas sobre detalles específicos
+
+    **Parámetros**:
+    - `lectura_id`: ID del contenido de lectura
+    - `num_actividades`: Número de actividades a generar (default: 5)
+    - `tipos`: Lista de tipos específicos a generar (opcional)
+
+    **Tipos disponibles**:
+    - `comprension`: Comprensión lectora general
+    - `vocabulario`: Significado de palabras clave
+    - `idea_principal`: Idea o tema principal del texto
+    - `inferencia`: Deducciones basadas en el contexto
+    - `detalles`: Detalles específicos mencionados
+
+    **Ejemplo**:
+    ```json
+    {
+      "num_actividades": 3,
+      "tipos": ["comprension", "vocabulario", "idea_principal"]
+    }
+    ```
+
+    Las actividades generadas se adaptan automáticamente a:
+    - La edad recomendada de la lectura
+    - El nivel de dificultad del contenido
+    - Las palabras y conceptos presentes en el texto
+    """
+    from app.modelos import ContenidoLectura
+
+    # Verificar que existe la lectura
+    lectura = db.query(ContenidoLectura).filter(
+        ContenidoLectura.id == lectura_id
+    ).first()
+
+    if not lectura:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Contenido de lectura con ID {lectura_id} no encontrado"
+        )
+
+    # Generar actividades con IA
+    try:
+        actividades_generadas = generador_actividades.generar_actividades_completas(
+            db=db,
+            contenido_id=lectura_id,
+            num_actividades=request.num_actividades,
+            incluir_tipos=request.tipos
+        )
+
+        return GenerarActividadesResponse(
+            lectura_id=lectura_id,
+            lectura_titulo=lectura.titulo,
+            total_generadas=len(actividades_generadas),
+            actividades=[
+                ActividadLecturaResponse.model_validate(act)
+                for act in actividades_generadas
+            ]
+        )
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al generar actividades: {str(e)}"
+        )
