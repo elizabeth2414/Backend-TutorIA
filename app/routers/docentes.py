@@ -49,7 +49,7 @@ def listar_docentes(
 ):
     docentes = (
         db.query(Docente)
-        .filter(Docente.actente == activo)
+        .filter(Docente.activo == activo)
         .offset(skip)
         .limit(limit)
         .all()
