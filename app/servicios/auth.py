@@ -9,6 +9,7 @@ from app.esquemas.auth import UsuarioCreate, CambioPassword
 from app.servicios.seguridad import (
     verificar_password, obtener_password_hash
 )
+from app.servicios.email_service import email_service
 from app.logs.logger import logger
 
 
@@ -135,10 +136,21 @@ def resetear_password(db: Session, email: str, ip_address: str = None):
         f"Expira en 1 hora. IP: {ip_address or 'N/A'}"
     )
 
-    # 4. TODO: Enviar email con el token
-    # Por ahora, en desarrollo, puedes incluir el token en la respuesta
-    # ⚠️ EN PRODUCCIÓN, NUNCA retornes el token en la respuesta!
-    # Solo envíalo por email
+    # 4. Enviar email con el token
+    try:
+        email_enviado = email_service.send_reset_password_email(
+            to_email=usuario.email,
+            usuario_nombre=usuario.nombre or usuario.email.split('@')[0],
+            reset_token=token_value
+        )
+
+        if email_enviado:
+            logger.info(f"📧 Email de reset enviado exitosamente a {usuario.email}")
+        else:
+            logger.warning(f"⚠️ No se pudo enviar email de reset a {usuario.email}")
+    except Exception as e:
+        logger.error(f"❌ Error al enviar email de reset a {usuario.email}: {str(e)}")
+        # No lanzamos excepción para no revelar si el email existe
 
     debug_mode = getattr(settings, 'DEBUG', False)
 
