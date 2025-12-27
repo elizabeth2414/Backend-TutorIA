@@ -37,6 +37,7 @@ from app.modelos.sesion_usuario import SesionUsuario
 from .historial_pronunciacion import HistorialPronunciacion
 from .historial_practica_pronunciacion import HistorialPracticaPronunciacion
 from .historial_mejoras_ia import HistorialMejorasIA
+from .actividad_lectura import ActividadLectura
 
 __all__ = [
     "Base",
@@ -71,4 +72,8 @@ __all__ = [
     "HistorialPuntos",
     "Auditoria",
     "SesionUsuario",
+    "HistorialPronunciacion",
+    "HistorialPracticaPronunciacion",
+    "HistorialMejorasIA",
+    "ActividadLectura",
 ]
