@@ -38,6 +38,7 @@ from .historial_pronunciacion import HistorialPronunciacion
 from .historial_practica_pronunciacion import HistorialPracticaPronunciacion
 from .historial_mejoras_ia import HistorialMejorasIA
 from .actividad_lectura import ActividadLectura
+from .password_reset_token import PasswordResetToken
 
 __all__ = [
     "Base",
@@ -76,4 +77,5 @@ __all__ = [
     "HistorialPracticaPronunciacion",
     "HistorialMejorasIA",
     "ActividadLectura",
+    "PasswordResetToken",
 ]

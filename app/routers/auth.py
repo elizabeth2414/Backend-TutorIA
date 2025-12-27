@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from datetime import timedelta
@@ -82,14 +82,62 @@ def cambio_password_endpoint(
 # RESET PASSWORD
 # ============================
 @router.post("/reset-password")
-def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
-    return resetear_password(db, request.email)
+def reset_password(
+    request: ResetPasswordRequest,
+    req: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Solicita un token de reset de contraseña.
+
+    El token se genera y guarda en la BD con expiración de 1 hora.
+    En producción, se enviaría por email al usuario.
+
+    Por seguridad, siempre retorna el mismo mensaje independientemente
+    de si el email existe o no.
+
+    Args:
+        request: Objeto con el email del usuario
+        req: Request object (para obtener IP)
+        db: Sesión de base de datos
+
+    Returns:
+        dict: Mensaje genérico + token en modo debug
+    """
+    # Obtener IP del cliente
+    ip_address = None
+    if hasattr(req, 'client') and req.client:
+        ip_address = req.client.host
+    elif 'x-forwarded-for' in req.headers:
+        ip_address = req.headers['x-forwarded-for'].split(',')[0].strip()
+    elif 'x-real-ip' in req.headers:
+        ip_address = req.headers['x-real-ip']
+
+    return resetear_password(db, request.email, ip_address)
+
 
 @router.post("/confirm-reset-password")
 def confirm_reset_password(
     request: ResetPasswordConfirm,
     db: Session = Depends(get_db)
 ):
+    """
+    Confirma el reset de contraseña usando el token recibido.
+
+    El token debe ser válido, no usado y no expirado.
+    Si es válido, cambia la contraseña del usuario.
+
+    Args:
+        request: Objeto con token y nueva contraseña
+        db: Sesión de base de datos
+
+    Returns:
+        dict: Mensaje de éxito
+
+    Raises:
+        HTTPException 400: Si el token es inválido, usado o expirado
+        HTTPException 400: Si la contraseña no cumple requisitos
+    """
     return confirmar_reset_password(db, request.token, request.nuevo_password)
 
 # ============================
