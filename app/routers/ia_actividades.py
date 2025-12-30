@@ -12,6 +12,7 @@ from app.esquemas.actividad_ia import (
     GenerarActividadesIAResponse,
     ActividadResponse
 )
+from app.logs.logger import logger
 
 router = APIRouter(prefix="/ia", tags=["ia-actividades"])
 
@@ -48,16 +49,36 @@ def generar_actividades_ia(
 
     try:
         actividad = generar_actividad_ia_para_contenido(db, contenido, opciones)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
 
-    return GenerarActividadesIAResponse(
-        contenido_id=contenido.id,
-        actividad_id=actividad.id,
-        total_preguntas=len(actividad.preguntas),
-        mensaje="Actividad generada correctamente por IA.",
-        actividad=ActividadResponse.from_attributes(actividad)
-    )
+        return GenerarActividadesIAResponse(
+            contenido_id=contenido.id,
+            actividad_id=actividad.id,
+            total_preguntas=len(actividad.preguntas),
+            mensaje="Actividad generada correctamente por IA.",
+            actividad=ActividadResponse.from_attributes(actividad)
+        )
+    except ValueError as e:
+        # Error específico del modelo de IA (JSON inválido, repeticiones, etc.)
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "Error generando actividad con IA",
+                "mensaje": str(e),
+                "sugerencia": "Intenta con un texto diferente o más corto. Si el problema persiste, el modelo de IA local podría no ser suficiente."
+            }
+        )
+    except Exception as e:
+        # Cualquier otro error inesperado
+        logger.error(f"❌ Error inesperado generando actividad IA: {e}")
+        logger.exception(e)
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Error interno del servidor",
+                "mensaje": "Ocurrió un error inesperado al generar la actividad con IA.",
+                "sugerencia": "Por favor, contacta al administrador del sistema."
+            }
+        )
 
 
 # =====================================================
