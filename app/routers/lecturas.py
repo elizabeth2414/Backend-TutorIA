@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from app.config import get_db
-from app.servicios.seguridad import requiere_docente
-from app.modelos import ContenidoLectura, CategoriaLectura, Curso
+from app.servicios.seguridad import obtener_docente_actual
+from app.modelos import ContenidoLectura, CategoriaLectura, Curso, Docente
 from pydantic import BaseModel
 from typing import Optional
 
@@ -56,7 +56,7 @@ class LecturaResponse(LecturaBase):
 @router.get("/", response_model=List[LecturaResponse])
 def listar_lecturas(
     db: Session = Depends(get_db),
-    docente=Depends(requiere_docente)
+    docente: Docente = Depends(obtener_docente_actual)  
 ):
     lecturas = (
         db.query(ContenidoLectura)
@@ -76,14 +76,14 @@ def listar_lecturas(
 def crear_lectura(
     datos: LecturaCreate,
     db: Session = Depends(get_db),
-    docente=Depends(requiere_docente)
+    docente: Docente = Depends(obtener_docente_actual)  
 ):
     lectura = ContenidoLectura(
         titulo=datos.titulo,
         contenido=datos.contenido,
         categoria_id=datos.categoria_id,
         curso_id=datos.curso_id,
-        docente_id=docente.id,
+        docente_id=docente.id,  
         nivel_dificultad=datos.nivel_dificultad,
         edad_recomendada=datos.edad_recomendada,
         etiquetas=datos.etiquetas,
@@ -106,7 +106,7 @@ def actualizar_lectura(
     lectura_id: int,
     datos: LecturaUpdate,
     db: Session = Depends(get_db),
-    docente=Depends(requiere_docente)
+    docente: Docente = Depends(obtener_docente_actual)  
 ):
     lectura = (
         db.query(ContenidoLectura)
@@ -135,7 +135,7 @@ def actualizar_lectura(
 def eliminar_lectura(
     lectura_id: int,
     db: Session = Depends(get_db),
-    docente=Depends(requiere_docente)
+    docente: Docente = Depends(obtener_docente_actual)  # ✅ CORREGIDO
 ):
     lectura = (
         db.query(ContenidoLectura)

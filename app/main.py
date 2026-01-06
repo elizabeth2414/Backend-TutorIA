@@ -1,8 +1,10 @@
 # app/main.py
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
+import traceback
 
 from app.logs.logger import logger
 from app.config import SessionLocal
@@ -19,28 +21,34 @@ app = FastAPI(
 logger.info("🚀 Backend TutorIA iniciado correctamente")
 
 # =====================================================
-# CORS CONFIG (WEB + ANDROID + JWT)
+# MIDDLEWARE PARA LOGGING DE REQUESTS
 # =====================================================
-# ⚠️ IMPORTANTE:
-# - NO usar "*" cuando allow_credentials=True
-# - Authorization header cuenta como credencial
-# - Capacitor usa diferentes esquemas según plataforma
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f"📥 {request.method} {request.url.path}")
+    logger.info(f"   Origin: {request.headers.get('origin', 'No origin')}")
+    
+    try:
+        response = await call_next(request)
+        logger.info(f"📤 Status: {response.status_code}")
+        return response
+    except Exception as e:
+        logger.error(f"❌ Error procesando request: {e}")
+        logger.error(traceback.format_exc())
+        return JSONResponse(
+            status_code=500,
+            content={"detail": str(e)}
+        )
+
+# =====================================================
+# CORS CONFIG
 # =====================================================
 origins = [
-    # Desarrollo local web
-    "http://localhost",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    
-    # Red local (ajusta según tu IP)
-    "http://192.168.53.45:5173",
-    "http://192.168.100.14:5173",
-    
-    # Capacitor Android/iOS
+    "http://192.168.54.2:5173",
     "capacitor://localhost",
     "http://localhost:8080",
-    
-    # Esquemas adicionales de Capacitor
     "ionic://localhost",
     "http://localhost",
     "https://localhost",
@@ -52,7 +60,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"],  # Importante para que el frontend vea los headers
+    expose_headers=["*"],
 )
 
 # =====================================================
@@ -82,17 +90,30 @@ def test_db():
         }
 
 # =====================================================
+# ENDPOINT DE PRUEBA CORS
+# =====================================================
+@app.post("/api/test-cors")
+async def test_cors():
+    return {"message": "✅ CORS funcionando correctamente"}
+
+# =====================================================
 # REGISTRO DE ROUTERS
 # =====================================================
 app.include_router(api_router, prefix="/api")
 
 # =====================================================
-# MANEJADOR DE ERRORES GLOBAL (opcional pero útil)
+# MANEJADOR DE ERRORES GLOBAL
 # =====================================================
 @app.exception_handler(Exception)
-async def global_exception_handler(request, exc):
-    logger.error(f"Error no manejado: {exc}")
-    return {
-        "message": "Error interno del servidor",
-        "detail": str(exc)
-    }
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"❌ Error global: {exc}")
+    logger.error(traceback.format_exc())
+    
+    return JSONResponse(
+        status_code=500,
+        content={
+            "message": "Error interno del servidor",
+            "detail": str(exc),
+            "path": request.url.path
+        }
+    )

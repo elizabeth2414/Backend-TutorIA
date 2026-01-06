@@ -11,11 +11,7 @@ from sqlalchemy.orm import Session
 
 from app import settings
 from app.config import get_db
-from app.modelos import Usuario, UsuarioRol, Docente # 👈 IMPORTANTE: añadimos UsuarioRol
-
-# ==============================
-# CONFIGURACIÓN DE SEGURIDAD
-# ==============================
+from app.modelos import Usuario, UsuarioRol, Docente 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -485,3 +481,30 @@ def asignar_rol(db: Session, usuario_id: int, rol: str):
     db.refresh(nuevo_rol)
 
     return nuevo_rol
+
+def obtener_docente_actual(
+    usuario: Usuario = Depends(requiere_docente),
+    db: Session = Depends(get_db)
+) -> Docente:
+    """
+    Obtiene el objeto Docente asociado al usuario autenticado.
+    
+    Uso:
+        @router.post("/lecturas")
+        def crear_lectura(
+            docente: Docente = Depends(obtener_docente_actual)
+        ):
+            # docente.id es el ID correcto de la tabla docente
+            ...
+    """
+    docente = db.query(Docente).filter(Docente.usuario_id == usuario.id).first()
+    
+    if not docente:
+        logger.error(f"❌ Usuario {usuario.email} tiene rol docente pero no registro en tabla docente")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error: usuario docente sin registro asociado"
+        )
+    
+    logger.debug(f"✅ Docente obtenido: id={docente.id}, usuario_id={docente.usuario_id}")
+    return docente
